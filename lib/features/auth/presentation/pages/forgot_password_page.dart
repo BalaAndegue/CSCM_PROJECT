@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/routes/app_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../providers/auth_provider.dart';
 
-class ForgotPasswordPage extends StatefulWidget {
+class ForgotPasswordPage extends ConsumerStatefulWidget {
   const ForgotPasswordPage({super.key});
 
   @override
-  State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
+  ConsumerState<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
 }
 
-class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
+class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   bool _sent = false;
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -23,8 +27,30 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    // TODO: appeler l'API de réinitialisation de mot de passe
-    setState(() => _sent = true);
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    FocusScope.of(context).unfocus();
+
+    final error = await ref
+        .read(authProvider.notifier)
+        .forgotPasswordRequest(_emailController.text.trim());
+
+    if (!mounted) return;
+
+    if (error == null) {
+      setState(() {
+        _isLoading = false;
+        _sent = true;
+      });
+    } else {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = error;
+      });
+    }
   }
 
   @override
@@ -45,7 +71,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           SafeArea(
             child: Column(
               children: [
-                // Header
+                // ── Header ──
                 Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -69,7 +95,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   ),
                 ),
 
-                // Card
+                // ── Card ──
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
@@ -87,8 +113,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       ],
                     ),
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(28, 32, 28, 24),
-                      child: _sent ? _SuccessView(context) : _FormView(),
+                      padding: const EdgeInsets.fromLTRB(28, 36, 28, 24),
+                      child: _sent ? _buildSuccess() : _buildForm(),
                     ),
                   ),
                 ),
@@ -100,13 +126,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     );
   }
 
-  Widget _FormView() {
+  Widget _buildForm() {
     return Form(
       key: _formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Icon(Icons.lock_reset_rounded, size: 56, color: AppColors.primary),
+          const Icon(Icons.lock_reset_rounded,
+              size: 56, color: AppColors.primary),
           const SizedBox(height: 20),
           Text(
             'Réinitialiser votre mot de passe',
@@ -124,6 +151,37 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),
+
+          // Bannière d'erreur
+          if (_errorMessage != null) ...[
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.errorContainer,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.error.withAlpha(80)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline, color: AppColors.error, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _errorMessage!,
+                      style: TextStyle(
+                        color: AppColors.errorDark,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
@@ -143,14 +201,24 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             },
           ),
           const SizedBox(height: 32),
+
           SizedBox(
             height: 56,
             child: FilledButton(
-              onPressed: _submit,
-              child: const Text('Envoyer le lien'),
+              onPressed: _isLoading ? null : _submit,
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Envoyer le lien'),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           TextButton(
             onPressed: () => context.go(AppRoutes.login),
             child: const Text('Retour à la connexion'),
@@ -160,7 +228,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     );
   }
 
-  Widget _SuccessView(BuildContext ctx) {
+  Widget _buildSuccess() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -168,17 +236,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         const Icon(Icons.mark_email_read_rounded,
             size: 72, color: Colors.green),
         const SizedBox(height: 24),
-        Text(
+        const Text(
           'Email envoyé !',
-          style: Theme.of(ctx).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 12),
         Text(
           'Vérifiez votre boîte mail et suivez les instructions pour réinitialiser votre mot de passe.',
-          style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: AppColors.onSurfaceVariantLight,
               ),
           textAlign: TextAlign.center,

@@ -43,10 +43,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   final Ref _ref;
 
-  Future<void> init() async {
-    // Signal loading so the router stays on splash
-    state = state.copyWith(isLoading: true);
+  // ──────────────────────────── INIT ────────────────────────────
 
+  Future<void> init() async {
+    state = state.copyWith(isLoading: true);
     try {
       final tokenStorage = _ref.read(tokenStorageProvider);
       final token = await tokenStorage.getAccessToken();
@@ -54,17 +54,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       if (token != null && roleStr != null) {
         final role = _parseRole(roleStr);
-        // Update the API client with the token
-        _ref.read(apiClientProvider).addDefaultHeader('Authorization', 'Bearer $token');
+        _ref
+            .read(apiClientProvider)
+            .addDefaultHeader('Authorization', 'Bearer $token');
         state = AuthState(token: token, role: role);
       } else {
-        // No stored session → go unauthenticated, triggers redirect to login
         state = const AuthState();
       }
     } catch (_) {
       state = const AuthState();
     }
   }
+
+  // ──────────────────────────── LOGIN ────────────────────────────
 
   Future<bool> login({required String email, required String password}) async {
     state = state.copyWith(isLoading: true, clearError: true);
@@ -77,13 +79,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       if (response?.data == null) {
         state = state.copyWith(
-          isLoading: false,
-          error: 'Réponse invalide du serveur',
-        );
+            isLoading: false, error: 'Réponse invalide du serveur');
         return false;
       }
 
-      final data = response!.data!;
+      final data = response.data!;
       final token = data['accessToken']?.toString() ??
           data['token']?.toString() ??
           data['access_token']?.toString();
@@ -92,16 +92,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       if (token == null) {
         state = state.copyWith(
-          isLoading: false,
-          error: 'Token non trouvé dans la réponse',
-        );
+            isLoading: false, error: 'Token non trouvé dans la réponse');
         return false;
       }
 
-      // Decode JWT to extract role
       final role = _extractRoleFromToken(token);
-
-      // Persist tokens
       final tokenStorage = _ref.read(tokenStorageProvider);
       await tokenStorage.saveTokens(
         accessToken: token,
@@ -109,25 +104,117 @@ class AuthNotifier extends StateNotifier<AuthState> {
         role: role.name,
       );
 
-      // Configure API client
-      _ref.read(apiClientProvider).addDefaultHeader('Authorization', 'Bearer $token');
-
+      _ref
+          .read(apiClientProvider)
+          .addDefaultHeader('Authorization', 'Bearer $token');
       state = AuthState(token: token, role: role);
       return true;
     } on ApiException catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: _parseApiError(e),
-      );
+      state = state.copyWith(isLoading: false, error: _parseApiError(e));
       return false;
     } catch (e) {
       state = state.copyWith(
-        isLoading: false,
-        error: 'Erreur de connexion. Vérifiez votre réseau.',
-      );
+          isLoading: false,
+          error: 'Erreur de connexion. Vérifiez votre réseau.');
       return false;
     }
   }
+
+  // ──────────────────────────── REGISTER ────────────────────────────
+
+  /// Inscrit un patient ou un médecin selon [role] ('PATIENT' ou 'MEDECIN').
+  /// Retourne null en cas de succès, un message d'erreur sinon.
+  Future<String?> register({
+    required String role,
+    required String nomComplet,
+    required String email,
+    required String motDePasse,
+    String? telephone,
+    // Patient uniquement
+    DateTime? dateNaissance,
+    String? genre, // 'M', 'F', 'AUTRE'
+    // Médecin uniquement
+    String? specialite,
+    String? numeroOrdre,
+    String? numeroCarteProfessionnelle,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    try {
+      final authApi = AuthentificationApi(_ref.read(apiClientProvider));
+
+      if (role == 'PATIENT') {
+        if (dateNaissance == null || genre == null) {
+          state = state.copyWith(isLoading: false, error: 'Champs patient manquants');
+          return 'Champs patient manquants';
+        }
+        final genreEnum = RegisterPatientRequestGenreEnum.fromJson(genre) ??
+            RegisterPatientRequestGenreEnum.AUTRE;
+
+        await authApi.registerPatient(
+          RegisterPatientRequest(
+            email: email,
+            motDePasse: motDePasse,
+            nomComplet: nomComplet,
+            telephone: telephone,
+            dateNaissance: dateNaissance,
+            genre: genreEnum,
+          ),
+        );
+      } else {
+        if (specialite == null || numeroOrdre == null) {
+          state = state.copyWith(isLoading: false, error: 'Champs médecin manquants');
+          return 'Champs médecin manquants';
+        }
+        await authApi.registerMedecin(
+          RegisterMedecinRequest(
+            email: email,
+            motDePasse: motDePasse,
+            nomComplet: nomComplet,
+            telephone: telephone,
+            specialite: specialite,
+            numeroOrdre: numeroOrdre,
+            numeroCarteProfessionnelle: numeroCarteProfessionnelle,
+          ),
+        );
+      }
+
+      state = state.copyWith(isLoading: false);
+      return null; // succès
+    } on ApiException catch (e) {
+      final msg = _parseApiError(e);
+      state = state.copyWith(isLoading: false, error: msg);
+      return msg;
+    } catch (e) {
+      const msg = 'Erreur de connexion. Vérifiez votre réseau.';
+      state = state.copyWith(isLoading: false, error: msg);
+      return msg;
+    }
+  }
+
+  // ──────────────────────────── FORGOT PASSWORD ────────────────────────────
+
+  /// Envoie le lien de réinitialisation par email.
+  /// Retourne null si succès, message d'erreur sinon.
+  Future<String?> forgotPasswordRequest(String email) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final authApi = AuthentificationApi(_ref.read(apiClientProvider));
+      await authApi.forgotPassword(EmailRequest(email: email));
+      state = state.copyWith(isLoading: false);
+      return null;
+    } on ApiException catch (e) {
+      final msg = _parseApiError(e);
+      state = state.copyWith(isLoading: false, error: msg);
+      return msg;
+    } catch (e) {
+      const msg = 'Erreur réseau. Vérifiez votre connexion.';
+      state = state.copyWith(isLoading: false, error: msg);
+      return msg;
+    }
+  }
+
+  // ──────────────────────────── LOGOUT ────────────────────────────
 
   Future<void> logout() async {
     try {
@@ -137,13 +224,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
         await authApi.logout('Bearer $token');
       }
     } catch (_) {
-      // Logout even if API call fails
+      // Logout même si l'appel échoue
     } finally {
       await _ref.read(tokenStorageProvider).clearAll();
       _ref.read(apiClientProvider).defaultHeaderMap.remove('Authorization');
       state = const AuthState();
     }
   }
+
+  // ──────────────────────────── HELPERS ────────────────────────────
 
   AuthRole _extractRoleFromToken(String token) {
     try {
@@ -154,7 +243,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final decoded = utf8.decode(base64.decode(normalized));
       final json = jsonDecode(decoded) as Map<String, dynamic>;
 
-      // Spring Boot typically puts role in "role" or "roles" or "authorities"
       final role = json['role']?.toString() ??
           json['roles']?.toString() ??
           (json['authorities'] is List
@@ -177,9 +265,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   String _parseApiError(ApiException e) {
+    if (e.code == 400) return 'Données invalides. Vérifiez les champs.';
     if (e.code == 401) return 'Email ou mot de passe incorrect';
     if (e.code == 403) return 'Accès refusé';
     if (e.code == 404) return 'Compte introuvable';
+    if (e.code == 409) return 'Cet email est déjà utilisé';
     if (e.code == 429) return 'Trop de tentatives. Réessayez plus tard.';
     if (e.code >= 500) return 'Erreur serveur. Réessayez plus tard.';
     return e.message ?? 'Une erreur est survenue';
