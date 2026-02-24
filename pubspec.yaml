@@ -1,0 +1,49 @@
+name: carnet_medical
+description: "CSCM – Carnet de Santé Connecté et Mobile"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Local API package (OpenAPI generated)
+  carnet_medical_api:
+    path: lib/api
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Routing
+  go_router: ^14.8.1
+
+  # Secure Storage
+  flutter_secure_storage: ^9.2.4
+
+  # Google Fonts
+  google_fonts: ^6.2.1
+
+  # Animation
+  lottie: ^3.3.1
+
+  # Utils
+  jwt_decoder: ^2.0.1
+  cupertino_icons: ^1.0.8
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  riverpod_generator: ^2.6.3
+  build_runner: ^2.4.15
+  custom_lint: ^0.7.5
+  riverpod_lint: ^2.6.3
+
+flutter:
+  uses-material-design: true
