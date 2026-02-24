@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/auth/presentation/pages/splash_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/auth/presentation/pages/register_page.dart';
+import '../../features/auth/presentation/pages/forgot_password_page.dart';
 import '../../features/shell/presentation/pages/main_shell_page.dart';
 import '../../features/patient/dashboard/presentation/pages/patient_dashboard_page.dart';
 import '../../features/patient/medical_history/presentation/pages/medical_history_page.dart';
@@ -16,6 +18,8 @@ import '../../features/medecin/patient_dossier/presentation/pages/patient_dossie
 class AppRoutes {
   static const splash = '/';
   static const login = '/login';
+  static const register = '/register';
+  static const forgotPassword = '/forgot-password';
 
   // Patient routes
   static const patientDashboard = '/patient/dashboard';
@@ -50,12 +54,16 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final isSplash = state.matchedLocation == AppRoutes.splash;
       final isLoginPage = state.matchedLocation == AppRoutes.login;
+      // Pages accessible sans être connecté
+      final isPublicPage = isLoginPage ||
+          state.matchedLocation == AppRoutes.register ||
+          state.matchedLocation == AppRoutes.forgotPassword;
 
       // Stay on splash while auth is being initialized
       if (isLoading) return null;
 
       // Not authenticated: redirect to login (from splash or any protected route)
-      if (!isAuthenticated && !isLoginPage) {
+      if (!isAuthenticated && !isPublicPage) {
         return AppRoutes.login;
       }
 
@@ -98,6 +106,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             );
           },
         ),
+      ),
+      GoRoute(
+        path: AppRoutes.register,
+        builder: (context, state) => const RegisterPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.forgotPassword,
+        builder: (context, state) => const ForgotPasswordPage(),
       ),
 
       // === PATIENT SHELL ===

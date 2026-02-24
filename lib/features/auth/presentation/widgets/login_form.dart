@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/routes/app_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../providers/auth_provider.dart';
 
@@ -129,9 +131,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
-              onPressed: () {
-                // TODO: navigate to forgot password
-              },
+              onPressed: () => context.push(AppRoutes.forgotPassword),
               child: const Text('Mot de passe oublié ?'),
             ),
           ),
@@ -154,9 +154,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               TextButton(
-                onPressed: () {
-                  // TODO: navigate to register
-                },
+                onPressed: () => context.push(AppRoutes.register),
                 style: TextButton.styleFrom(
                   padding: EdgeInsets.zero,
                   minimumSize: Size.zero,
