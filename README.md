@@ -190,5 +190,5 @@ MIT © [François Bala Andegue](https://github.com/balaandeguefrancoislionnel) -
 <div align="center">
   <strong>500FCFA/mois = 1 vie sauvée 🚑🇨🇲</strong>
 </div>
-```
+
 
