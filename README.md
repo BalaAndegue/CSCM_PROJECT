@@ -192,4 +192,3 @@ MIT © [François Bala Andegue](https://github.com/balaandeguefrancoislionnel) -
 </div>
 ```
 
-**Copie-colle direct** → **README ultra-pro prêt hackathon** ! 🎯
