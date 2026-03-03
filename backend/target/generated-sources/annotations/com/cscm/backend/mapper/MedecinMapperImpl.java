@@ -10,8 +10,8 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-02-24T01:29:55+0100",
-    comments = "version: 1.5.5.Final, compiler: javac, environment: Java 23 (Oracle Corporation)"
+    date = "2026-03-03T12:44:12+0100",
+    comments = "version: 1.5.5.Final, compiler: Eclipse JDT (IDE) 3.45.0.v20260128-0750, environment: Java 21.0.9 (Eclipse Adoptium)"
 )
 @Component
 public class MedecinMapperImpl implements MedecinMapper {
@@ -26,20 +26,20 @@ public class MedecinMapperImpl implements MedecinMapper {
 
         medecinDto.nomComplet( medecinUserNomComplet( medecin ) );
         medecinDto.email( medecinUserEmail( medecin ) );
-        medecinDto.id( medecin.getId() );
-        medecinDto.numeroOrdre( medecin.getNumeroOrdre() );
-        medecinDto.specialite( medecin.getSpecialite() );
-        medecinDto.sousSpecialite( medecin.getSousSpecialite() );
-        medecinDto.numeroCarteProfessionnelle( medecin.getNumeroCarteProfessionnelle() );
         medecinDto.anneesExperience( medecin.getAnneesExperience() );
         medecinDto.biographie( medecin.getBiographie() );
-        medecinDto.status( medecin.getStatus() );
         medecinDto.consultationFee( medecin.getConsultationFee() );
-        medecinDto.disponible( medecin.getDisponible() );
         List<String> list = medecin.getDiplomes();
         if ( list != null ) {
             medecinDto.diplomes( new ArrayList<String>( list ) );
         }
+        medecinDto.disponible( medecin.getDisponible() );
+        medecinDto.id( medecin.getId() );
+        medecinDto.numeroCarteProfessionnelle( medecin.getNumeroCarteProfessionnelle() );
+        medecinDto.numeroOrdre( medecin.getNumeroOrdre() );
+        medecinDto.sousSpecialite( medecin.getSousSpecialite() );
+        medecinDto.specialite( medecin.getSpecialite() );
+        medecinDto.status( medecin.getStatus() );
 
         return medecinDto.build();
     }
@@ -52,20 +52,20 @@ public class MedecinMapperImpl implements MedecinMapper {
 
         Medecin.MedecinBuilder medecin = Medecin.builder();
 
-        medecin.id( medecinDto.getId() );
-        medecin.numeroOrdre( medecinDto.getNumeroOrdre() );
-        medecin.specialite( medecinDto.getSpecialite() );
-        medecin.sousSpecialite( medecinDto.getSousSpecialite() );
-        medecin.numeroCarteProfessionnelle( medecinDto.getNumeroCarteProfessionnelle() );
         medecin.anneesExperience( medecinDto.getAnneesExperience() );
+        medecin.biographie( medecinDto.getBiographie() );
+        medecin.consultationFee( medecinDto.getConsultationFee() );
         List<String> list = medecinDto.getDiplomes();
         if ( list != null ) {
             medecin.diplomes( new ArrayList<String>( list ) );
         }
-        medecin.biographie( medecinDto.getBiographie() );
-        medecin.status( medecinDto.getStatus() );
-        medecin.consultationFee( medecinDto.getConsultationFee() );
         medecin.disponible( medecinDto.getDisponible() );
+        medecin.id( medecinDto.getId() );
+        medecin.numeroCarteProfessionnelle( medecinDto.getNumeroCarteProfessionnelle() );
+        medecin.numeroOrdre( medecinDto.getNumeroOrdre() );
+        medecin.sousSpecialite( medecinDto.getSousSpecialite() );
+        medecin.specialite( medecinDto.getSpecialite() );
+        medecin.status( medecinDto.getStatus() );
 
         return medecin.build();
     }

@@ -8,8 +8,8 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-02-24T01:29:56+0100",
-    comments = "version: 1.5.5.Final, compiler: javac, environment: Java 23 (Oracle Corporation)"
+    date = "2026-03-03T12:44:12+0100",
+    comments = "version: 1.5.5.Final, compiler: Eclipse JDT (IDE) 3.45.0.v20260128-0750, environment: Java 21.0.9 (Eclipse Adoptium)"
 )
 @Component
 public class PatientMapperImpl implements PatientMapper {
@@ -24,17 +24,17 @@ public class PatientMapperImpl implements PatientMapper {
 
         patientDto.nomComplet( patientUserNomComplet( patient ) );
         patientDto.email( patientUserEmail( patient ) );
+        patientDto.adresse( patient.getAdresse() );
+        patientDto.createdAt( patient.getCreatedAt() );
+        patientDto.dateNaissance( patient.getDateNaissance() );
+        patientDto.dateVerificationAboRh( patient.getDateVerificationAboRh() );
+        patientDto.genre( patient.getGenre() );
+        patientDto.groupeSanguin( patient.getGroupeSanguin() );
         patientDto.id( patient.getId() );
         patientDto.numeroCarnet( patient.getNumeroCarnet() );
-        patientDto.dateNaissance( patient.getDateNaissance() );
-        patientDto.genre( patient.getGenre() );
-        patientDto.adresse( patient.getAdresse() );
-        patientDto.telephone( patient.getTelephone() );
-        patientDto.situationFamiliale( patient.getSituationFamiliale() );
         patientDto.profession( patient.getProfession() );
-        patientDto.groupeSanguin( patient.getGroupeSanguin() );
-        patientDto.dateVerificationAboRh( patient.getDateVerificationAboRh() );
-        patientDto.createdAt( patient.getCreatedAt() );
+        patientDto.situationFamiliale( patient.getSituationFamiliale() );
+        patientDto.telephone( patient.getTelephone() );
         patientDto.updatedAt( patient.getUpdatedAt() );
 
         return patientDto.build();
@@ -48,17 +48,17 @@ public class PatientMapperImpl implements PatientMapper {
 
         Patient.PatientBuilder patient = Patient.builder();
 
+        patient.adresse( patientDto.getAdresse() );
+        patient.createdAt( patientDto.getCreatedAt() );
+        patient.dateNaissance( patientDto.getDateNaissance() );
+        patient.dateVerificationAboRh( patientDto.getDateVerificationAboRh() );
+        patient.genre( patientDto.getGenre() );
+        patient.groupeSanguin( patientDto.getGroupeSanguin() );
         patient.id( patientDto.getId() );
         patient.numeroCarnet( patientDto.getNumeroCarnet() );
-        patient.dateNaissance( patientDto.getDateNaissance() );
-        patient.genre( patientDto.getGenre() );
-        patient.adresse( patientDto.getAdresse() );
-        patient.telephone( patientDto.getTelephone() );
-        patient.situationFamiliale( patientDto.getSituationFamiliale() );
         patient.profession( patientDto.getProfession() );
-        patient.groupeSanguin( patientDto.getGroupeSanguin() );
-        patient.dateVerificationAboRh( patientDto.getDateVerificationAboRh() );
-        patient.createdAt( patientDto.getCreatedAt() );
+        patient.situationFamiliale( patientDto.getSituationFamiliale() );
+        patient.telephone( patientDto.getTelephone() );
         patient.updatedAt( patientDto.getUpdatedAt() );
 
         return patient.build();

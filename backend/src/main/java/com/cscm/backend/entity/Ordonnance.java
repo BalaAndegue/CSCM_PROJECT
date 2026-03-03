@@ -12,9 +12,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 @Entity
 @Table(name = "ordonnances")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Ordonnance {
 
     @Id

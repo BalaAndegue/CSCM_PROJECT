@@ -8,9 +8,12 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 @Entity
 @Table(name = "consultations")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Consultation {
 
     @Id

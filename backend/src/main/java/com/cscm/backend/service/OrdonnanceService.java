@@ -20,6 +20,7 @@ public class OrdonnanceService {
     private final CarnetMedicalRepository carnetMedicalRepository;
     private final MedecinRepository medecinRepository;
     private final HopitalRepository hopitalRepository;
+    private final ApprobationMedecinRepository approbationRepository;
 
     public Page<Ordonnance> getByCarnet(UUID carnetId, Pageable pageable) {
         return ordonnanceRepository.findByCarnetId(carnetId, pageable);
@@ -42,6 +43,14 @@ public class OrdonnanceService {
                 .orElseThrow(() -> new ResourceNotFoundException("Médecin introuvable"));
         Hopital hopital = hopitalRepository.findById(hopitalId)
                 .orElseThrow(() -> new ResourceNotFoundException("Hôpital introuvable"));
+
+        // Vérifier que le médecin a une approbation active du patient
+        boolean approbationActive = approbationRepository
+                .existsByCarnetIdAndMedecinIdAndActifTrue(carnetId, medecinId);
+        if (!approbationActive) {
+            throw new BusinessException(
+                    "Accès refusé : le patient n'a pas autorisé ce médecin à éditer son carnet");
+        }
 
         data.setCarnet(carnet);
         data.setMedecin(medecin);

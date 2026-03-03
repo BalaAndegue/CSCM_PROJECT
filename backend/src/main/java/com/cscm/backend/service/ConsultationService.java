@@ -21,6 +21,7 @@ public class ConsultationService {
     private final CarnetMedicalRepository carnetMedicalRepository;
     private final MedecinRepository medecinRepository;
     private final HopitalRepository hopitalRepository;
+    private final ApprobationMedecinRepository approbationRepository;
 
     public Page<Consultation> getConsultationsByCarnet(UUID carnetId, Pageable pageable) {
         return consultationRepository.findByCarnetId(carnetId, pageable);
@@ -47,6 +48,14 @@ public class ConsultationService {
         Medecin medecin = medecinRepository.findById(medecinId)
                 .orElseThrow(() -> new ResourceNotFoundException("Médecin introuvable"));
 
+        // Vérifier que le médecin a une approbation active du patient
+        boolean approbationActive = approbationRepository
+                .existsByCarnetIdAndMedecinIdAndActifTrue(carnetId, medecinId);
+        if (!approbationActive) {
+            throw new com.cscm.backend.exception.BusinessException(
+                    "Accès refusé : le patient n'a pas autorisé ce médecin à éditer son carnet");
+        }
+
         data.setCarnet(carnet);
         data.setMedecin(medecin);
 
@@ -56,7 +65,7 @@ public class ConsultationService {
             data.setHopital(hopital);
         }
         if (data.getDateConsultation() == null) {
-            data.setDateConsultation(LocalDateTime.now());
+            data.setDateConsultation(java.time.LocalDateTime.now());
         }
         return consultationRepository.save(data);
     }

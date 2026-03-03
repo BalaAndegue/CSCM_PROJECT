@@ -12,9 +12,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 @Entity
 @Table(name = "patients")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Patient {
 
     @Id

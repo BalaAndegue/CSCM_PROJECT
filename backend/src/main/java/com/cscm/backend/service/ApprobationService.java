@@ -51,7 +51,7 @@ public class ApprobationService {
                 .dateSignatureGarant(byGarant ? now : null)
                 .signatureGarant(byGarant ? (signatureGarant != null ? signatureGarant : "APPROVED_BY_GARANT") : null)
                 .actif(true)
-                .dateExpiration(now.plusHours(24)) // L'accès expire automatiquement après 24 heures
+                // Pas d'expiration automatique : le patient révoque manuellement quand il le souhaite
                 .build();
         return approbationRepository.save(approbation);
     }

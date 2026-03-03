@@ -7,10 +7,13 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 @Entity
 @Table(name = "approbations_medecins",
         uniqueConstraints = @UniqueConstraint(columnNames = {"carnet_id", "medecin_id"}))
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class ApprobationMedecin {
 
     @Id

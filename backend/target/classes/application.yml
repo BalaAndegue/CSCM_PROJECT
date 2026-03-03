@@ -54,6 +54,7 @@ spring:
   jackson:
     serialization:
       write-dates-as-timestamps: false
+      fail-on-empty-beans: false
     default-property-inclusion: non_null
 
 # JWT

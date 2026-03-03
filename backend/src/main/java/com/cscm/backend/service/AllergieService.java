@@ -18,6 +18,7 @@ public class AllergieService {
     private final AllergieRepository allergieRepository;
     private final CarnetMedicalRepository carnetMedicalRepository;
     private final MedecinRepository medecinRepository;
+    private final ApprobationMedecinRepository approbationRepository;
 
     public List<Allergie> getByCarnet(UUID carnetId) {
         return allergieRepository.findByCarnetId(carnetId);
@@ -38,6 +39,13 @@ public class AllergieService {
                 .orElseThrow(() -> new ResourceNotFoundException("Carnet introuvable"));
         data.setCarnet(carnet);
         if (medecinId != null) {
+            // Vérifier que le médecin a une approbation active
+            boolean approbationActive = approbationRepository
+                    .existsByCarnetIdAndMedecinIdAndActifTrue(carnetId, medecinId);
+            if (!approbationActive) {
+                throw new com.cscm.backend.exception.BusinessException(
+                        "Accès refusé : le patient n'a pas autorisé ce médecin à éditer son carnet");
+            }
             medecinRepository.findById(medecinId).ifPresent(data::setMedecinNotificateur);
         }
         return allergieRepository.save(data);
