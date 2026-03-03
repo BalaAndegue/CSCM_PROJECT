@@ -7,14 +7,27 @@ import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/routes/app_router.dart';
 import '../../../../auth/presentation/providers/auth_provider.dart';
 
-// Providers
+// ─── Providers ──────────────────────────────────────────────────────────────
+
 final medecinProfileProvider = FutureProvider<Medecin?>((ref) async {
-  final clientAsync = await ref.watch(authenticatedApiClientProvider.future);
+  final client = await ref.watch(authenticatedApiClientProvider.future);
   try {
-    final response = await MdecinsApi(clientAsync).getMyProfile1();
+    final response = await MdecinsApi(client).getMyProfile1();
     return response?.data;
   } catch (_) {
     return null;
+  }
+});
+
+// Dashboard agrégé backend
+final medecinDashboardProvider =
+    FutureProvider<Map<String, Object?>>((ref) async {
+  final client = await ref.watch(authenticatedApiClientProvider.future);
+  try {
+    final response = await DashboardApi(client).dashboardMedecin();
+    return response?.data ?? {};
+  } catch (_) {
+    return {};
   }
 });
 
@@ -27,7 +40,8 @@ final recentPatientsProvider = FutureProvider<List<Patient>>((ref) async {
     // Get consultations by this medecin and extract unique patients
     final response = await ConsultationsApi(clientAsync)
         .getByMedecin(medecin!.id!, Pageable(page: 0, size: 10));
-    final consultations = response?.data?.content ?? [];
+    final content = response?.data?.content;
+    final consultations = content ?? [];
     // Collect unique patients from consultations
     final seen = <String>{};
     final patients = <Patient>[];
@@ -339,7 +353,7 @@ class _MedecinStatsRow extends StatelessWidget {
             child: _StatChip(
           icon: Icons.school_outlined,
           label: 'Diplômes',
-          value: '${medecin?.diplomes?.length ?? 0}',
+          value: '${(medecin?.diplomes ?? []).length}',
           color: AppColors.secondary,
         )),
         const SizedBox(width: 12),

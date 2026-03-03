@@ -231,7 +231,6 @@ class _NavBarItem extends StatefulWidget {
 class _NavBarItemState extends State<_NavBarItem>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _scaleAnim;
 
   @override
   void initState() {
@@ -241,7 +240,6 @@ class _NavBarItemState extends State<_NavBarItem>
       duration: const Duration(milliseconds: 200),
       value: widget.isSelected ? 1 : 0,
     );
-    _scaleAnim = Tween<double>(begin: 1.0, end: 1.0).animate(_controller);
   }
 
   @override

@@ -3,20 +3,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:carnet_medical_api/api.dart';
 import '../../../../../core/providers/api_client_provider.dart';
 import '../../../../../core/theme/app_colors.dart';
+import '../../../dashboard/presentation/providers/patient_providers.dart';
 
-// Providers
+// ─── Provider approbations du patient connecté ────────────────────────────────
 final approbationsProvider =
     FutureProvider<List<ApprobationMedecin>>((ref) async {
-  final clientAsync = await ref.watch(authenticatedApiClientProvider.future);
-  final api = ApprobationsMdecinsApi(clientAsync);
+  final carnet = await ref.watch(patientCarnetProvider.future);
+  if (carnet?.id == null) return [];
+  final client = await ref.watch(authenticatedApiClientProvider.future);
   try {
-    final response = await api.getMesAcces();
+    final response =
+        await ApprobationsMdecinsApi(client).getMedecinsApprouves(carnet!.id!);
     return response?.data ?? [];
   } catch (_) {
     return [];
   }
 });
 
+// ─── Page principale ─────────────────────────────────────────────────────────
 class AccessManagementPage extends ConsumerWidget {
   const AccessManagementPage({super.key});
 
@@ -35,11 +39,8 @@ class AccessManagementPage extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-                // Header info card
                 const _AccessInfoCard(),
                 const SizedBox(height: 24),
-
-                // Title row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -48,7 +49,7 @@ class AccessManagementPage extends ConsumerWidget {
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     FilledButton.icon(
-                      onPressed: () => _showAddAccessDialog(context, ref),
+                      onPressed: () => _showAddDialog(context, ref),
                       icon: const Icon(Icons.add, size: 18),
                       label: const Text('Ajouter'),
                       style: FilledButton.styleFrom(
@@ -61,8 +62,6 @@ class AccessManagementPage extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-
-                // Approbations list
                 approbationsAsync.when(
                   data: (list) => list.isEmpty
                       ? const _EmptyAccess()
@@ -70,8 +69,8 @@ class AccessManagementPage extends ConsumerWidget {
                           children: list
                               .map((a) => Padding(
                                     padding: const EdgeInsets.only(bottom: 12),
-                                    child: _ApprobationCard(
-                                        approbation: a, ref: ref),
+                                    child:
+                                        _ApprobationCard(approbation: a, ref: ref),
                                   ))
                               .toList(),
                         ),
@@ -88,20 +87,17 @@ class AccessManagementPage extends ConsumerWidget {
     );
   }
 
-  void _showAddAccessDialog(BuildContext context, WidgetRef ref) {
+  void _showAddDialog(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (context) => _AddAccessBottomSheet(ref: ref),
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _AddAccessBottomSheet(widgetRef: ref),
     );
   }
 }
 
 // ─── Info Card ────────────────────────────────────────────────────────────────
-
 class _AccessInfoCard extends StatelessWidget {
   const _AccessInfoCard();
 
@@ -116,14 +112,17 @@ class _AccessInfoCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 22),
+          const Icon(Icons.info_outline_rounded,
+              color: AppColors.primary, size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Gérez qui peut consulter votre dossier médical. Vous pouvez accorder un accès permanent ou limité à 24h.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.primaryDark,
-                  ),
+              'Gérez qui peut consulter votre dossier médical. '
+              'Vous pouvez accorder un accès permanent ou le révoquer à tout moment.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: AppColors.primaryDark),
             ),
           ),
         ],
@@ -133,7 +132,6 @@ class _AccessInfoCard extends StatelessWidget {
 }
 
 // ─── Approbation Card ─────────────────────────────────────────────────────────
-
 class _ApprobationCard extends StatelessWidget {
   const _ApprobationCard({required this.approbation, required this.ref});
   final ApprobationMedecin approbation;
@@ -143,7 +141,6 @@ class _ApprobationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isActive = approbation.actif ?? false;
-    // Temporary if it has an expiration date in the future
     final isTemporary = approbation.dateExpiration != null;
     final statusColor = isActive ? AppColors.success : AppColors.warning;
 
@@ -159,17 +156,15 @@ class _ApprobationCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(6),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
+              color: Colors.black.withAlpha(6),
+              blurRadius: 10,
+              offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
         children: [
           Row(
             children: [
-              // Doctor avatar
               Container(
                 width: 48,
                 height: 48,
@@ -180,7 +175,8 @@ class _ApprobationCard extends StatelessWidget {
                 child: Center(
                   child: Text(
                     approbation.medecin?.user?.nomComplet?.isNotEmpty == true
-                        ? approbation.medecin!.user!.nomComplet![0].toUpperCase()
+                        ? approbation.medecin!.user!.nomComplet![0]
+                            .toUpperCase()
                         : 'M',
                     style: const TextStyle(
                         color: Colors.white,
@@ -196,9 +192,10 @@ class _ApprobationCard extends StatelessWidget {
                   children: [
                     Text(
                       'Dr. ${approbation.medecin?.user?.nomComplet ?? 'Médecin'}',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     Text(
                       approbation.medecin?.specialite ?? 'Spécialiste',
@@ -207,7 +204,6 @@ class _ApprobationCard extends StatelessWidget {
                   ],
                 ),
               ),
-              // Status badge
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -218,10 +214,9 @@ class _ApprobationCard extends StatelessWidget {
                 child: Text(
                   isActive ? 'Actif' : 'En attente',
                   style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: statusColor,
-                  ),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: statusColor),
                 ),
               ),
             ],
@@ -229,18 +224,16 @@ class _ApprobationCard extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              if (isTemporary &&
-                  approbation.dateExpiration != null) ...[
+              if (isTemporary && approbation.dateExpiration != null) ...[
                 const Icon(Icons.timer_outlined,
                     size: 14, color: AppColors.warning),
                 const SizedBox(width: 4),
                 Text(
                   'Expire le ${_fmtDate(approbation.dateExpiration!)}',
                   style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.warning,
-                    fontWeight: FontWeight.w500,
-                  ),
+                      fontSize: 12,
+                      color: AppColors.warning,
+                      fontWeight: FontWeight.w500),
                 ),
               ] else ...[
                 const Icon(Icons.lock_open_outlined,
@@ -249,15 +242,14 @@ class _ApprobationCard extends StatelessWidget {
                 const Text(
                   'Accès permanent',
                   style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.success,
-                    fontWeight: FontWeight.w500,
-                  ),
+                      fontSize: 12,
+                      color: AppColors.success,
+                      fontWeight: FontWeight.w500),
                 ),
               ],
               const Spacer(),
               TextButton.icon(
-                onPressed: () => _revokeAccess(context, ref),
+                onPressed: () => _revokeDialog(context, ref),
                 icon: const Icon(Icons.block_outlined, size: 16),
                 label: const Text('Révoquer'),
                 style: TextButton.styleFrom(
@@ -276,21 +268,35 @@ class _ApprobationCard extends StatelessWidget {
   String _fmtDate(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
-  Future<void> _revokeAccess(BuildContext context, WidgetRef ref) async {
+  Future<void> _revokeDialog(BuildContext context, WidgetRef ref) async {
+    final motifController = TextEditingController();
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Révoquer l\'accès'),
-        content: const Text(
-            'Êtes-vous sûr de vouloir révoquer l\'accès de ce médecin à votre dossier ?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+                'Êtes-vous sûr de vouloir révoquer l\'accès de ce médecin ?'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: motifController,
+              decoration: const InputDecoration(
+                labelText: 'Motif (optionnel)',
+                hintText: 'Raison de la révocation...',
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Annuler')),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style:
-                FilledButton.styleFrom(backgroundColor: AppColors.error),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             child: const Text('Révoquer'),
           ),
         ],
@@ -299,18 +305,22 @@ class _ApprobationCard extends StatelessWidget {
 
     if (confirm == true && approbation.id != null) {
       try {
-        final clientAsync =
+        final client =
             await ref.read(authenticatedApiClientProvider.future);
-        final api = ApprobationsMdecinsApi(clientAsync);
-        await api.revoquer(approbation.id!);
+        await ApprobationsMdecinsApi(client).revoquer(
+          approbation.id!,
+          motifRequest: MotifRequest(motif: motifController.text.isNotEmpty
+              ? motifController.text
+              : 'Révocation par le patient'),
+        );
         ref.invalidate(approbationsProvider);
       } catch (_) {}
     }
+    motifController.dispose();
   }
 }
 
 // ─── Empty State ──────────────────────────────────────────────────────────────
-
 class _EmptyAccess extends StatelessWidget {
   const _EmptyAccess();
 
@@ -333,7 +343,7 @@ class _EmptyAccess extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Ajoutez un médecin pour lui donner accès à votre carnet médical',
+            'Appuyez sur « Ajouter » pour accorder un accès à un médecin',
             style: Theme.of(context).textTheme.bodySmall,
             textAlign: TextAlign.center,
           ),
@@ -343,188 +353,142 @@ class _EmptyAccess extends StatelessWidget {
   }
 }
 
-// ─── Add Access Bottom Sheet ─────────────────────────────────────────────────
-
-class _AddAccessBottomSheet extends StatefulWidget {
-  const _AddAccessBottomSheet({required this.ref});
-  final WidgetRef ref;
+// ─── Ajout d'un accès ────────────────────────────────────────────────────────
+class _AddAccessBottomSheet extends ConsumerStatefulWidget {
+  const _AddAccessBottomSheet({required this.widgetRef});
+  final WidgetRef widgetRef;
 
   @override
-  State<_AddAccessBottomSheet> createState() => _AddAccessBottomSheetState();
+  ConsumerState<_AddAccessBottomSheet> createState() =>
+      _AddAccessBottomSheetState();
 }
 
-class _AddAccessBottomSheetState extends State<_AddAccessBottomSheet> {
-  final _medecinIdController = TextEditingController();
-  final _carnetIdController = TextEditingController();
-  String _accessType = 'PERMANENT';
+class _AddAccessBottomSheetState extends ConsumerState<_AddAccessBottomSheet> {
+  final _medecinIdCtrl = TextEditingController();
+  bool _loading = false;
+  String? _error;
 
   @override
   void dispose() {
-    _medecinIdController.dispose();
-    _carnetIdController.dispose();
+    _medecinIdCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
       padding: EdgeInsets.only(
         left: 24,
         right: 24,
         top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 32,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Handle
           Center(
             child: Container(
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.outlineLight,
-                borderRadius: BorderRadius.circular(2),
-              ),
+                  color: AppColors.outlineLight,
+                  borderRadius: BorderRadius.circular(2)),
             ),
           ),
           const SizedBox(height: 24),
-          Text('Ajouter un accès médecin',
+          Text('Accorder un accès médecin',
               style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
-            'Entrez l\'identifiant du médecin et de votre carnet pour accorder l\'accès',
+            'Entrez l\'UUID du médecin (fourni par votre médecin)',
             style: Theme.of(context).textTheme.bodySmall,
           ),
-          const SizedBox(height: 24),
-
+          const SizedBox(height: 20),
           TextField(
-            controller: _carnetIdController,
-            decoration: const InputDecoration(
-              labelText: 'ID du carnet médical',
-              hintText: 'ex: CM-001234',
-              prefixIcon: Icon(Icons.credit_card_outlined),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _medecinIdController,
+            controller: _medecinIdCtrl,
             decoration: const InputDecoration(
               labelText: 'ID du médecin',
-              hintText: 'ex: DR-001234',
+              hintText: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
               prefixIcon: Icon(Icons.person_search_outlined),
             ),
           ),
-          const SizedBox(height: 16),
-
-          // Access type
-          Row(
-            children: [
-              Expanded(
-                child: _AccessTypeChip(
-                  label: 'Permanent',
-                  icon: Icons.lock_open_outlined,
-                  isSelected: _accessType == 'PERMANENT',
-                  color: AppColors.success,
-                  onTap: () => setState(() => _accessType = 'PERMANENT'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _AccessTypeChip(
-                  label: '24 heures',
-                  icon: Icons.timer_outlined,
-                  isSelected: _accessType == 'TEMPORAIRE',
-                  color: AppColors.warning,
-                  onTap: () => setState(() => _accessType = 'TEMPORAIRE'),
-                ),
-              ),
-            ],
-          ),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(_error!,
+                style: const TextStyle(color: AppColors.error, fontSize: 13)),
+          ],
           const SizedBox(height: 24),
-
           FilledButton(
-            onPressed: () => _submitAccess(context),
-            child: const Text('Accorder l\'accès'),
+            onPressed: _loading ? null : _submit,
+            child: _loading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white))
+                : const Text('Accorder l\'accès'),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _submitAccess(BuildContext context) async {
-    if (_medecinIdController.text.isEmpty ||
-        _carnetIdController.text.isEmpty) return;
-    try {
-      final clientAsync =
-          await widget.ref.read(authenticatedApiClientProvider.future);
-      final api = ApprobationsMdecinsApi(clientAsync);
-      await api.approuver1(
-          _carnetIdController.text, _medecinIdController.text);
-      widget.ref.invalidate(approbationsProvider);
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
-      }
+  Future<void> _submit() async {
+    final medecinId = _medecinIdCtrl.text.trim();
+    if (medecinId.isEmpty) {
+      setState(() => _error = 'Veuillez entrer l\'ID du médecin');
+      return;
     }
-  }
-}
 
-class _AccessTypeChip extends StatelessWidget {
-  const _AccessTypeChip({
-    required this.label,
-    required this.icon,
-    required this.isSelected,
-    required this.color,
-    required this.onTap,
-  });
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
 
-  final String label;
-  final IconData icon;
-  final bool isSelected;
-  final Color color;
-  final VoidCallback onTap;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
 
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? color.withAlpha(20) : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected ? color : AppColors.outlineLight,
-            width: isSelected ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon,
-                color: isSelected
-                    ? color
-                    : AppColors.onSurfaceVariantLight,
-                size: 18),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight:
-                    isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: isSelected ? color : AppColors.onSurfaceVariantLight,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    try {
+      final carnet =
+          await ref.read(patientCarnetProvider.future);
+      if (carnet?.id == null) {
+        setState(() {
+          _loading = false;
+          _error = 'Carnet médical introuvable';
+        });
+        return;
+      }
+      final client =
+          await ref.read(authenticatedApiClientProvider.future);
+      await ApprobationsMdecinsApi(client).approuver1(
+        carnet!.id!,
+        medecinId,
+        signatureRequest: SignatureRequest(signature: 'CONSENT_GRANTED'),
+      );
+      ref.invalidate(approbationsProvider);
+      if (mounted) navigator.pop();
+    } on ApiException catch (e) {
+      setState(() {
+        _loading = false;
+        _error = e.code == 409
+            ? 'Accès déjà accordé ou médecin invalide'
+            : 'Erreur: ${e.message ?? e.code}';
+      });
+    } catch (_) {
+      setState(() {
+        _loading = false;
+        _error = 'Erreur réseau. Vérifiez votre connexion.';
+      });
+    }
+    if (mounted) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('✅ Accès accordé avec succès')),
+      );
+    }
   }
 }

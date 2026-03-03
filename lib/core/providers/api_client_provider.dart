@@ -49,10 +49,13 @@ final tokenStorageProvider = Provider<TokenStorage>((ref) {
   return TokenStorage(ref.watch(secureStorageProvider));
 });
 
-// ⚠️  Ajuste cette adresse selon ton environnement :
-//   - Émulateur Android  : 'http://10.0.2.2:8080/api'
-//   - Vrai téléphone     : 'http://<IP_LAN_PC>:8080/api'  ex: 'http://192.168.1.42:8080/api'
-const _apiBasePath = 'http://192.168.1.135:8080/api';
+// ⚠️  Adresse du backend Spring Boot sur le réseau local.
+//   Ton téléphone et ton PC doivent être sur le même réseau (Wi-Fi ou hotspot).
+//   IP actuelle détectée : 172.20.10.2  — adapte si elle change.
+//
+//   Émulateur Android  → utilise 'http://10.0.2.2:8080/api'
+//   Téléphone physique → utilise l'IP LAN du PC ci-dessous
+const _apiBasePath = 'http://172.20.10.2:8080/api';
 
 final apiClientProvider = Provider<ApiClient>((ref) {
   final client = ApiClient(basePath: _apiBasePath);

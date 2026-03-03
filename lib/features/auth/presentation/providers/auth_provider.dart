@@ -77,13 +77,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
         LoginRequest(email: email, motDePasse: password),
       );
 
-      if (response?.data == null) {
+      final data = response?.data;
+      if (data == null) {
         state = state.copyWith(
             isLoading: false, error: 'Réponse invalide du serveur');
         return false;
       }
 
-      final data = response.data!;
       final token = data['accessToken']?.toString() ??
           data['token']?.toString() ??
           data['access_token']?.toString();
