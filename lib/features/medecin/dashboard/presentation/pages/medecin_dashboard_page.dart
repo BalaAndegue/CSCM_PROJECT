@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:carnet_medical_api/api.dart';
+import 'dart:convert';
 import '../../../../../core/providers/api_client_provider.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/routes/app_router.dart';
-import '../../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../shared/presentation/pages/qr_scanner_page.dart';
 
 // ─── Providers ──────────────────────────────────────────────────────────────
 
@@ -31,27 +32,13 @@ final medecinDashboardProvider =
   }
 });
 
-// Recent patients who had appointments with this medecin
-final recentPatientsProvider = FutureProvider<List<Patient>>((ref) async {
-  final medecin = await ref.watch(medecinProfileProvider.future);
-  if (medecin?.id == null) return [];
-  final clientAsync = await ref.watch(authenticatedApiClientProvider.future);
+// Liste des approbations actives du médecin (patients autorisés)
+final mesAccesProvider =
+    FutureProvider<List<ApprobationMedecin>>((ref) async {
+  final client = await ref.watch(authenticatedApiClientProvider.future);
   try {
-    // Get consultations by this medecin and extract unique patients
-    final response = await ConsultationsApi(clientAsync)
-        .getByMedecin(medecin!.id!, Pageable(page: 0, size: 10));
-    final content = response?.data?.content;
-    final consultations = content ?? [];
-    // Collect unique patients from consultations
-    final seen = <String>{};
-    final patients = <Patient>[];
-    for (final c in consultations) {
-      if (c.carnet?.patient?.id != null &&
-          seen.add(c.carnet!.patient!.id!)) {
-        patients.add(c.carnet!.patient!);
-      }
-    }
-    return patients.take(5).toList();
+    final response = await ApprobationsMdecinsApi(client).getMesAcces();
+    return (response?.data ?? []).where((a) => a.actif == true).toList();
   } catch (_) {
     return [];
   }
@@ -65,7 +52,7 @@ class MedecinDashboardPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final medecinAsync = ref.watch(medecinProfileProvider);
-    final patientsAsync = ref.watch(recentPatientsProvider);
+    final accesAsync = ref.watch(mesAccesProvider);
 
     return Scaffold(
       body: CustomScrollView(
@@ -88,22 +75,30 @@ class MedecinDashboardPage extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // Recent patients section
+                // Mes patients autorisés
                 Text(
-                  'Patients récents',
+                  'Mes patients autorisés',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 12),
 
-                patientsAsync.when(
-                  data: (patients) => patients.isEmpty
+                accesAsync.when(
+                  data: (accList) => accList.isEmpty
                       ? const _EmptyPatients()
                       : Column(
-                          children: patients
-                              .map((p) => Padding(
-                                    padding:
-                                        const EdgeInsets.only(bottom: 12),
-                                    child: _PatientRecentCard(patient: p),
+                          children: accList
+                              .map((a) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: _AccesPatientCard(
+                                      approbation: a,
+                                      onTap: () {
+                                        final pid = a.carnet?.patient?.id;
+                                        if (pid != null) {
+                                          context.push(
+                                              AppRoutes.patientDossierPath(pid));
+                                        }
+                                      },
+                                    ),
                                   ))
                               .toList(),
                         ),
@@ -257,13 +252,75 @@ class _MedecinAppBar extends StatelessWidget {
           ),
         ),
       ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.logout_outlined, color: Colors.white),
-          onPressed: () => ref.read(authProvider.notifier).logout(),
+      // Avatar tappable → profil médecin
+      leading: GestureDetector(
+        onTap: () => context.go(AppRoutes.medecinProfile),
+        child: Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: medecinAsync.when(
+            data: (m) => CircleAvatar(
+              radius: 18,
+              backgroundColor: Colors.white.withAlpha(30),
+              child: Text(
+                m?.user?.nomComplet?.isNotEmpty == true
+                    ? m!.user!.nomComplet![0].toUpperCase()
+                    : 'M',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700),
+              ),
+            ),
+            loading: () => const CircleAvatar(
+                radius: 18, backgroundColor: Colors.white30),
+            error: (_, __) => const CircleAvatar(radius: 18),
+          ),
         ),
+      ),
+      actions: [
+        // QR scanner pour lire le QR patient
+        IconButton(
+          icon: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white),
+          tooltip: 'Scanner patient',
+          onPressed: () => _openQrScanner(context),
+        ),
+        IconButton(
+          icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+          tooltip: 'Notifications',
+          onPressed: () {},
+        ),
+        const SizedBox(width: 4),
       ],
     );
+  }
+
+  void _openQrScanner(BuildContext context) {
+    Navigator.of(context).push(MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (ctx) => QrScannerPage(
+        title: 'Scanner patient',
+        subtitle: 'Scannez le QR code du carnet du patient',
+        accentColor: AppColors.medecinColor,
+        onResult: (raw) async {
+          // Attend JSON {"type":"patient","carnetId":"xxx","patientId":"xxx"}
+          String? patientId;
+          try {
+            final j = jsonDecode(raw) as Map<String, dynamic>;
+            if (j['type'] == 'patient') {
+              patientId = j['patientId'] as String?;
+            }
+          } catch (_) {
+            patientId = raw.trim();
+          }
+          if (patientId == null || patientId.isEmpty) return false;
+          if (context.mounted) {
+            context.pop();
+            context.push(AppRoutes.patientDossierPath(patientId));
+          }
+          return true;
+        },
+      ),
+    ));
   }
 }
 
@@ -415,18 +472,23 @@ class _StatChip extends StatelessWidget {
   }
 }
 
-// ─── Recent Patient Card ──────────────────────────────────────────────────────
+// ─── Accès Patient Card (from mesAccesProvider) ──────────────────────────────
 
-class _PatientRecentCard extends StatelessWidget {
-  const _PatientRecentCard({required this.patient});
-  final Patient patient;
+class _AccesPatientCard extends StatelessWidget {
+  const _AccesPatientCard({required this.approbation, required this.onTap});
+  final ApprobationMedecin approbation;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final patient = approbation.carnet?.patient;
+    final name = patient?.user?.nomComplet ?? 'Patient';
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    final numCarnet = patient?.numeroCarnet;
+
     return GestureDetector(
-      onTap: () =>
-          context.push(AppRoutes.patientDossierPath(patient.id ?? '')),
+      onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -435,52 +497,66 @@ class _PatientRecentCard extends StatelessWidget {
           border: Border.all(
             color: isDark
                 ? AppColors.outlineVariantDark
-                : AppColors.outlineVariantLight,
+                : const Color(0xFFB2EDE8),
+            width: 1.5,
           ),
+          boxShadow: [
+            BoxShadow(
+                color: AppColors.medecinColor.withAlpha(10),
+                blurRadius: 12,
+                offset: const Offset(0, 4)),
+          ],
         ),
         child: Row(
           children: [
-            Hero(
-              tag: 'patient-avatar-${patient.id}',
-              child: Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  borderRadius: BorderRadius.circular(14),
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF007268), Color(0xFF00A896)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                child: Center(
-                  child: Text(
-                    patient.user?.nomComplet?.isNotEmpty == true
-                        ? patient.user!.nomComplet![0].toUpperCase()
-                        : '?',
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Center(
+                child: Text(initial,
                     style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700)),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    patient.user?.nomComplet ?? 'Patient',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  if (patient.numeroCarnet != null)
-                    Text('N° ${patient.numeroCarnet}',
+                  Text(name,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700)),
+                  if (numCarnet != null)
+                    Text('N° $numCarnet',
                         style: Theme.of(context).textTheme.bodySmall),
                 ],
               ),
             ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.success.withAlpha(20),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text('Actif',
+                  style: TextStyle(
+                      color: AppColors.success,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600)),
+            ),
+            const SizedBox(width: 8),
             const Icon(Icons.arrow_forward_ios_rounded,
                 size: 14, color: AppColors.onSurfaceVariantLight),
           ],
@@ -490,7 +566,7 @@ class _PatientRecentCard extends StatelessWidget {
   }
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 class _EmptyPatients extends StatelessWidget {
   const _EmptyPatients();

@@ -10,9 +10,11 @@ import '../../features/shell/presentation/pages/main_shell_page.dart';
 import '../../features/patient/dashboard/presentation/pages/patient_dashboard_page.dart';
 import '../../features/patient/medical_history/presentation/pages/medical_history_page.dart';
 import '../../features/patient/access_management/presentation/pages/access_management_page.dart';
+import '../../features/patient/profile/presentation/pages/patient_profile_page.dart';
 import '../../features/medecin/dashboard/presentation/pages/medecin_dashboard_page.dart';
 import '../../features/medecin/search/presentation/pages/patient_search_page.dart';
 import '../../features/medecin/patient_dossier/presentation/pages/patient_dossier_page.dart';
+import '../../features/medecin/profile/presentation/pages/medecin_profile_page.dart';
 
 // Route names
 class AppRoutes {
@@ -25,11 +27,13 @@ class AppRoutes {
   static const patientDashboard = '/patient/dashboard';
   static const patientHistory = '/patient/history';
   static const patientAccess = '/patient/access';
+  static const patientProfile = '/patient/profile';
 
   // Medecin routes
   static const medecinDashboard = '/medecin/dashboard';
   static const medecinSearch = '/medecin/search';
   static const medecinPatientDossier = '/medecin/patient/:patientId';
+  static const medecinProfile = '/medecin/profile';
 
   static String patientDossierPath(String patientId) =>
       '/medecin/patient/$patientId';
@@ -134,6 +138,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: AppRoutes.patientAccess,
             builder: (context, state) => const AccessManagementPage(),
           ),
+          GoRoute(
+            path: AppRoutes.patientProfile,
+            builder: (context, state) => const PatientProfilePage(),
+          ),
         ],
       ),
 
@@ -157,6 +165,10 @@ final routerProvider = Provider<GoRouter>((ref) {
               final patientId = state.pathParameters['patientId']!;
               return PatientDossierPage(patientId: patientId);
             },
+          ),
+          GoRoute(
+            path: AppRoutes.medecinProfile,
+            builder: (context, state) => const MedecinProfilePage(),
           ),
         ],
       ),

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:carnet_medical_api/api.dart';
 import '../../../../../core/theme/app_colors.dart';
-import '../../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../../core/routes/app_router.dart';
 import '../providers/patient_providers.dart';
 import '../widgets/patient_health_summary_card.dart';
 import '../widgets/patient_quick_actions.dart';
@@ -120,15 +121,18 @@ class _PatientSliverAppBar extends StatelessWidget {
                         loading: () => const SizedBox(),
                         error: (_, __) => const SizedBox(),
                       ),
-                      // Profile avatar with Hero
+                      // Profile avatar → navigates to profile page
                       patientAsync.when(
-                        data: (patient) => Hero(
-                          tag: 'patient-avatar-${patient?.id}',
-                          child: _ProfileAvatar(
-                            name: patient?.user?.nomComplet?.isNotEmpty == true
-                                ? patient!.user!.nomComplet![0].toUpperCase()
-                                : '?',
-                            photoUrl: null,
+                        data: (patient) => GestureDetector(
+                          onTap: () => context.go(AppRoutes.patientProfile),
+                          child: Hero(
+                            tag: 'patient-avatar-${patient?.id}',
+                            child: _ProfileAvatar(
+                              name: patient?.user?.nomComplet?.isNotEmpty == true
+                                  ? patient!.user!.nomComplet![0].toUpperCase()
+                                  : '?',
+                              photoUrl: null,
+                            ),
                           ),
                         ),
                         loading: () => const _AvatarSkeleton(),
@@ -178,12 +182,10 @@ class _PatientSliverAppBar extends StatelessWidget {
       actions: [
         IconButton(
           icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+          tooltip: 'Notifications',
           onPressed: () {},
         ),
-        IconButton(
-          icon: const Icon(Icons.logout_outlined, color: Colors.white),
-          onPressed: () => ref.read(authProvider.notifier).logout(),
-        ),
+        const SizedBox(width: 4),
       ],
     );
   }

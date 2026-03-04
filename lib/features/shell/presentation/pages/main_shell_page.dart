@@ -50,6 +50,12 @@ class _PatientNavBar extends StatelessWidget {
       activeIcon: Icons.shield_rounded,
       route: AppRoutes.patientAccess,
     ),
+    (
+      label: 'Profil',
+      icon: Icons.person_outline_rounded,
+      activeIcon: Icons.person_rounded,
+      route: AppRoutes.patientProfile,
+    ),
   ];
 
   @override
@@ -82,8 +88,8 @@ class _MedecinNavBar extends StatelessWidget {
   static const _items = [
     (
       label: 'Tableau de bord',
-      icon: Icons.dashboard_outlined,
-      activeIcon: Icons.dashboard_rounded,
+      icon: Icons.space_dashboard_outlined,
+      activeIcon: Icons.space_dashboard_rounded,
       route: AppRoutes.medecinDashboard,
     ),
     (
@@ -91,6 +97,12 @@ class _MedecinNavBar extends StatelessWidget {
       icon: Icons.search_outlined,
       activeIcon: Icons.search_rounded,
       route: AppRoutes.medecinSearch,
+    ),
+    (
+      label: 'Profil',
+      icon: Icons.person_outline_rounded,
+      activeIcon: Icons.person_rounded,
+      route: AppRoutes.medecinProfile,
     ),
   ];
 
