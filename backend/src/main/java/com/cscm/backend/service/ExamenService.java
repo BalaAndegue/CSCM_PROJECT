@@ -1,83 +1,84 @@
 package com.cscm.backend.service;
 
-import com.cscm.backend.entity.*;
-import com.cscm.backend.exception.BusinessException;
+import com.cscm.backend.entity.Examen;
+import com.cscm.backend.entity.ResultatExamen;
 import com.cscm.backend.exception.ResourceNotFoundException;
-import com.cscm.backend.repository.*;
+import com.cscm.backend.repository.ExamenRepository;
+import com.cscm.backend.repository.ResultatExamenRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.util.List;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class ExamenService {
+
     private final ExamenRepository examenRepository;
     private final ResultatExamenRepository resultatRepository;
-    private final CarnetMedicalRepository carnetMedicalRepository;
-    private final MedecinRepository medecinRepository;
 
-    public Page<Examen> getByCarnet(UUID carnetId, Pageable pageable) {
-        return examenRepository.findByCarnetId(carnetId, pageable);
+    public Flux<Examen> getByCarnet(UUID carnetId, int size, long offset) {
+        return examenRepository.findByCarnetIdPaged(carnetId, size, offset);
     }
 
-    public Examen getById(UUID id) {
+    public Mono<Examen> getById(UUID id) {
         return examenRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Examen introuvable: " + id));
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Examen introuvable: " + id)));
     }
 
-    @Transactional
-    public Examen create(UUID carnetId, UUID medecinId, Examen data) {
-        CarnetMedical carnet = carnetMedicalRepository.findById(carnetId)
-                .orElseThrow(() -> new ResourceNotFoundException("Carnet introuvable"));
-        Medecin medecin = medecinRepository.findById(medecinId)
-                .orElseThrow(() -> new ResourceNotFoundException("Médecin introuvable"));
-        data.setCarnet(carnet);
-        data.setMedecinPrescripteur(medecin);
+    public Mono<Examen> create(UUID carnetId, UUID medecinId, Examen data) {
+        data.setId(UUID.randomUUID());
+        data.setCarnetId(carnetId);
+        data.setMedecinPrescripteurId(medecinId);
         return examenRepository.save(data);
     }
 
-    @Transactional
-    public Examen marquerRealise(UUID id) {
-        Examen examen = getById(id);
-        if (examen.getDateRealisation() == null)
-            examen.setDateRealisation(java.time.LocalDateTime.now());
-        return examenRepository.save(examen);
+    public Mono<Examen> marquerRealise(UUID id) {
+        return getById(id)
+                .flatMap(examen -> {
+                    if (examen.getDateRealisation() == null) {
+                        examen.setDateRealisation(LocalDateTime.now());
+                    }
+                    return examenRepository.save(examen);
+                });
     }
 
-    @Transactional
-    public Examen update(UUID id, Examen updates) {
-        Examen examen = getById(id);
-        if (updates.getTypeExamen() != null) examen.setTypeExamen(updates.getTypeExamen());
-        if (updates.getInstructions() != null) examen.setInstructions(updates.getInstructions());
-        if (updates.getEtablissementRealisation() != null) examen.setEtablissementRealisation(updates.getEtablissementRealisation());
-        if (updates.getDateRealisation() != null) examen.setDateRealisation(updates.getDateRealisation());
-        if (updates.getNotes() != null) examen.setNotes(updates.getNotes());
-        return examenRepository.save(examen);
+    public Mono<Examen> update(UUID id, Examen updates) {
+        return getById(id)
+                .flatMap(examen -> {
+                    if (updates.getTypeExamen() != null) examen.setTypeExamen(updates.getTypeExamen());
+                    if (updates.getInstructions() != null) examen.setInstructions(updates.getInstructions());
+                    if (updates.getEtablissementRealisation() != null) examen.setEtablissementRealisation(updates.getEtablissementRealisation());
+                    if (updates.getDateRealisation() != null) examen.setDateRealisation(updates.getDateRealisation());
+                    if (updates.getNotes() != null) examen.setNotes(updates.getNotes());
+                    return examenRepository.save(examen);
+                });
     }
 
-    @Transactional
-    public void delete(UUID id) {
-        if (!examenRepository.existsById(id))
-            throw new ResourceNotFoundException("Examen introuvable: " + id);
-        examenRepository.deleteById(id);
+    public Mono<Void> delete(UUID id) {
+        return examenRepository.existsById(id)
+                .flatMap(exists -> exists
+                        ? examenRepository.deleteById(id)
+                        : Mono.error(new ResourceNotFoundException("Examen introuvable: " + id)));
     }
 
-    public List<ResultatExamen> getResultats(UUID examenId) {
+    public Flux<ResultatExamen> getResultats(UUID examenId) {
         return resultatRepository.findByExamenId(examenId);
     }
 
-    @Transactional
-    public ResultatExamen addResultat(UUID examenId, ResultatExamen data) {
-        Examen examen = getById(examenId);
-        data.setExamen(examen);
-        ResultatExamen saved = resultatRepository.save(data);
-        examen.setResultatPrisEnCompte(true);
-        examenRepository.save(examen);
-        return saved;
+    public Mono<ResultatExamen> addResultat(UUID examenId, ResultatExamen data) {
+        return getById(examenId)
+                .flatMap(examen -> {
+                    data.setId(UUID.randomUUID());
+                    data.setExamenId(examenId);
+                    return resultatRepository.save(data)
+                            .flatMap(saved -> {
+                                examen.setResultatPrisEnCompte(true);
+                                return examenRepository.save(examen).thenReturn(saved);
+                            });
+                });
     }
 }

@@ -1,83 +1,105 @@
 package com.cscm.backend.service;
 
-import com.cscm.backend.entity.*;
+import com.cscm.backend.entity.Hopital;
+import com.cscm.backend.entity.MedecinHopital;
 import com.cscm.backend.exception.BusinessException;
 import com.cscm.backend.exception.ResourceNotFoundException;
-import com.cscm.backend.repository.*;
+import com.cscm.backend.repository.HopitalRepository;
+import com.cscm.backend.repository.MedecinHopitalRepository;
+import com.cscm.backend.repository.MedecinRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class HopitalService {
+
     private final HopitalRepository hopitalRepository;
     private final MedecinRepository medecinRepository;
     private final MedecinHopitalRepository medecinHopitalRepository;
+    private final MatriculeService matriculeService;
 
-    public Page<Hopital> getAll(Pageable pageable) {
-        return hopitalRepository.findAll(pageable);
+    public Flux<Hopital> getAll(int size, long offset) {
+        return hopitalRepository.findAllPaged(size, offset);
     }
 
-    public Hopital getById(UUID id) {
+    public Flux<Hopital> searchByNom(String nom, int size, long offset) {
+        return hopitalRepository.searchByNom(nom, size, offset);
+    }
+
+    public Mono<Hopital> getById(UUID id) {
         return hopitalRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Hôpital introuvable: " + id));
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Hôpital introuvable: " + id)));
     }
 
-    @Transactional
-    public Hopital create(Hopital data) {
-        if (hopitalRepository.existsByNumeroAgrement(data.getNumeroAgrement())) {
-            throw new BusinessException("Un hôpital avec ce numéro d'agrément existe déjà");
-        }
-        return hopitalRepository.save(data);
+    public Mono<Hopital> create(Hopital data) {
+        return hopitalRepository.existsByNumeroAgrement(data.getNumeroAgrement())
+                .flatMap(exists -> {
+                    if (exists) return Mono.error(new BusinessException("Un hôpital avec ce numéro d'agrément existe déjà"));
+                    return matriculeService.genererMatriculeHopital();
+                })
+                .flatMap(matricule -> {
+                    data.setId(UUID.randomUUID());
+                    data.setMatricule(matricule);
+                    return hopitalRepository.save(data);
+                });
     }
 
-    @Transactional
-    public Hopital update(UUID id, Hopital updates) {
-        Hopital hopital = getById(id);
-        if (updates.getNom() != null) hopital.setNom(updates.getNom());
-        if (updates.getAdresse() != null) hopital.setAdresse(updates.getAdresse());
-        if (updates.getTelephone() != null) hopital.setTelephone(updates.getTelephone());
-        if (updates.getEmail() != null) hopital.setEmail(updates.getEmail());
-        if (updates.getDescription() != null) hopital.setDescription(updates.getDescription());
-        return hopitalRepository.save(hopital);
+    public Mono<Hopital> update(UUID id, Hopital updates) {
+        return getById(id)
+                .flatMap(hopital -> {
+                    if (updates.getNom() != null) hopital.setNom(updates.getNom());
+                    if (updates.getAdresse() != null) hopital.setAdresse(updates.getAdresse());
+                    if (updates.getTelephone() != null) hopital.setTelephone(updates.getTelephone());
+                    if (updates.getEmail() != null) hopital.setEmail(updates.getEmail());
+                    if (updates.getDescription() != null) hopital.setDescription(updates.getDescription());
+                    return hopitalRepository.save(hopital);
+                });
     }
 
-    @Transactional
-    public void delete(UUID id) {
-        if (!hopitalRepository.existsById(id))
-            throw new ResourceNotFoundException("Hôpital introuvable: " + id);
-        hopitalRepository.deleteById(id);
+    public Mono<Void> delete(UUID id) {
+        return hopitalRepository.existsById(id)
+                .flatMap(exists -> exists
+                        ? hopitalRepository.deleteById(id)
+                        : Mono.error(new ResourceNotFoundException("Hôpital introuvable: " + id)));
     }
 
-    @Transactional
-    public MedecinHopital rattacherMedecin(UUID hopitalId, UUID medecinId, String service) {
-        Hopital hopital = getById(hopitalId);
-        Medecin medecin = medecinRepository.findById(medecinId)
-                .orElseThrow(() -> new ResourceNotFoundException("Médecin introuvable"));
-        if (medecinHopitalRepository.existsByMedecinIdAndHopitalIdAndActifTrue(medecinId, hopitalId)) {
-            throw new BusinessException("Ce médecin est déjà rattaché à cet hôpital");
-        }
-        MedecinHopital mh = MedecinHopital.builder()
-                .medecin(medecin).hopital(hopital).service(service).actif(true).build();
-        return medecinHopitalRepository.save(mh);
+    public Mono<MedecinHopital> rattacherMedecin(UUID hopitalId, UUID medecinId, String service) {
+        return medecinHopitalRepository.existsByMedecinIdAndHopitalIdAndActifTrue(medecinId, hopitalId)
+                .flatMap(exists -> {
+                    if (exists) return Mono.error(new BusinessException("Ce médecin est déjà rattaché à cet hôpital"));
+                    return medecinRepository.findById(medecinId)
+                            .switchIfEmpty(Mono.error(new ResourceNotFoundException("Médecin introuvable")));
+                })
+                .flatMap(medecin -> {
+                    MedecinHopital mh = MedecinHopital.builder()
+                            .id(UUID.randomUUID())
+                            .medecinId(medecinId)
+                            .hopitalId(hopitalId)
+                            .service(service)
+                            .actif(true)
+                            .dateDebut(LocalDateTime.now())
+                            .build();
+                    return medecinHopitalRepository.save(mh);
+                });
     }
 
-    @Transactional
-    public void detacherMedecin(UUID hopitalId, UUID medecinId) {
-        MedecinHopital mh = medecinHopitalRepository.findByMedecinIdAndHopitalId(medecinId, hopitalId)
-                .orElseThrow(() -> new ResourceNotFoundException("Association introuvable"));
-        mh.setActif(false);
-        medecinHopitalRepository.save(mh);
+    public Mono<Void> detacherMedecin(UUID hopitalId, UUID medecinId) {
+        return medecinHopitalRepository.findByMedecinIdAndHopitalId(medecinId, hopitalId)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Association introuvable")))
+                .flatMap(mh -> {
+                    mh.setActif(false);
+                    return medecinHopitalRepository.save(mh);
+                })
+                .then();
     }
 
-    public List<Medecin> getMedecinsHopital(UUID hopitalId) {
-        return medecinRepository.findByHopitalId(hopitalId);
+    public Flux<MedecinHopital> getMedecinsHopital(UUID hopitalId) {
+        return medecinHopitalRepository.findByHopitalIdAndActifTrue(hopitalId);
     }
 }
