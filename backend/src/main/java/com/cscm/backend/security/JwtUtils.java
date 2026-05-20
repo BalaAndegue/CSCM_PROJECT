@@ -42,6 +42,10 @@ public class JwtUtils {
         return buildToken(extraClaims, userDetails, jwtExpiration);
     }
 
+    public String generateTokenWithClaims(UserDetails userDetails, Map<String, Object> extraClaims) {
+        return buildToken(extraClaims, userDetails, jwtExpiration);
+    }
+
     public String generateRefreshToken(UserDetails userDetails) {
         return buildToken(new HashMap<>(), userDetails, refreshExpiration);
     }

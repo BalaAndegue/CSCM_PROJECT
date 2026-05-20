@@ -1,88 +1,87 @@
 package com.cscm.backend.config;
 
-import com.cscm.backend.security.JwtAuthFilter;
-import com.cscm.backend.security.CustomUserDetailsService;
+import com.cscm.backend.security.JwtAuthWebFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.ReactiveAuthenticationManager;
+import org.springframework.security.authentication.UserDetailsRepositoryReactiveAuthenticationManager;
+import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
+import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
+import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.authentication.HttpStatusServerEntryPoint;
+import org.springframework.security.web.server.authorization.HttpStatusServerAccessDeniedHandler;
 import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.cors.reactive.CorsConfigurationSource;
+import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
 @Configuration
-@EnableWebSecurity
-@EnableMethodSecurity
+@EnableWebFluxSecurity
+@EnableReactiveMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthFilter jwtAuthFilter;
-    private final CustomUserDetailsService userDetailsService;
+    private final JwtAuthWebFilter jwtAuthWebFilter;
+    private final ReactiveUserDetailsService userDetailsService;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-            .csrf(AbstractHttpConfigurer::disable)
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                // Public routes
-                .requestMatchers(
-                    "/auth/login",
-                    "/auth/register/**",
-                    "/auth/refresh",
-                    "/auth/forgot-password",
-                    "/auth/reset-password",
-                    "/auth/verify-email",
-                    "/v3/api-docs/**",
-                    "/swagger-ui/**",
-                    "/swagger-ui.html",
-                    "/actuator/health"
-                ).permitAll()
-
-                // Admin only
-                .requestMatchers("/admin/**").hasRole("ADMIN")
-
-                // Manager hôpital
-                .requestMatchers("/hopitaux/*/medecins/**").hasAnyRole("ADMIN", "MANAGER_HOPITAL")
-                .requestMatchers(HttpMethod.POST, "/hopitaux/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/hopitaux/**").hasRole("ADMIN")
-                .requestMatchers("/consents/**").hasAnyRole("MEDECIN", "MANAGER_HOPITAL", "ADMIN")
-
-                // Authenticated users
-                .anyRequest().authenticated()
-            )
-            .authenticationProvider(authenticationProvider())
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
-
-        return http.build();
+    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
+        return http
+                .csrf(ServerHttpSecurity.CsrfSpec::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
+                .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(new HttpStatusServerEntryPoint(HttpStatus.UNAUTHORIZED))
+                        .accessDeniedHandler(new HttpStatusServerAccessDeniedHandler(HttpStatus.FORBIDDEN))
+                )
+                .authorizeExchange(auth -> auth
+                        .pathMatchers(
+                                "/auth/login",
+                                "/auth/register/**",
+                                "/auth/refresh",
+                                "/auth/forgot-password",
+                                "/auth/reset-password",
+                                "/auth/verify-email",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/webjars/**",
+                                "/actuator/health",
+                                "/ws/**",
+                                "/notifications/stream/**"
+                        ).permitAll()
+                        .pathMatchers("/admin/**").hasRole("ADMIN")
+                        .pathMatchers("/hopitaux/*/medecins/**").hasAnyRole("ADMIN", "MANAGER_HOPITAL")
+                        .pathMatchers(HttpMethod.POST, "/hopitaux/**").hasRole("ADMIN")
+                        .pathMatchers(HttpMethod.DELETE, "/hopitaux/**").hasRole("ADMIN")
+                        .pathMatchers("/consents/**").hasAnyRole("MEDECIN", "MANAGER_HOPITAL", "ADMIN")
+                        .anyExchange().authenticated()
+                )
+                .addFilterAt(jwtAuthWebFilter, SecurityWebFiltersOrder.AUTHENTICATION)
+                .build();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of(frontendUrl, "http://localhost:*"));
+        config.setAllowedOriginPatterns(List.of(frontendUrl, "http://localhost:*", "http://10.0.*.*:*"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(List.of("Content-Disposition", "X-Total-Count"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 
@@ -92,16 +91,11 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(userDetailsService);
-        provider.setPasswordEncoder(passwordEncoder());
-        return provider;
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
+    public ReactiveAuthenticationManager reactiveAuthenticationManager() {
+        UserDetailsRepositoryReactiveAuthenticationManager manager =
+                new UserDetailsRepositoryReactiveAuthenticationManager(userDetailsService);
+        manager.setPasswordEncoder(passwordEncoder());
+        return manager;
     }
 
     @Bean
