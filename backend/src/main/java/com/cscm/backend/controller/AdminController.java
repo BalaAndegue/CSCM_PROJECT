@@ -1,6 +1,5 @@
 package com.cscm.backend.controller;
 
-import com.cscm.backend.entity.User;
 import com.cscm.backend.enums.MedecinStatus;
 import com.cscm.backend.repository.*;
 import com.cscm.backend.service.MedecinService;
@@ -8,14 +7,12 @@ import com.cscm.backend.util.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -23,7 +20,7 @@ import java.util.UUID;
 @RequestMapping("/admin")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-@Tag(name = "Administration", description = "Gestion globale de la plateforme (ADMIN seulement)")
+@Tag(name = "Administration", description = "Gestion globale de la plateforme – ADMIN uniquement")
 public class AdminController {
 
     private final UserRepository userRepository;
@@ -34,59 +31,119 @@ public class AdminController {
     private final AbonnementRepository abonnementRepository;
 
     @GetMapping("/users")
-    @Operation(summary = "Lister tous les utilisateurs")
-    public ResponseEntity<ApiResponse<Page<User>>> getAllUsers(@PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.success(userRepository.findAll(pageable)));
+    @Operation(summary = "Lister les utilisateurs actifs paginés")
+    Mono<ResponseEntity<ApiResponse<?>>> getAllUsers(
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "0") long offset,
+            @RequestParam(defaultValue = "PATIENT") String role) {
+        return userRepository.findActiveByRolePaged(role, size, offset)
+                .collectList()
+                .map(list -> ResponseEntity.ok(ApiResponse.success(list)));
     }
 
     @PutMapping("/users/{id}/desactiver")
-    @Operation(summary = "Désactiver un compte")
-    public ResponseEntity<ApiResponse<Void>> desactiver(@PathVariable UUID id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new com.cscm.backend.exception.ResourceNotFoundException("Utilisateur introuvable"));
-        user.setCompteActif(false);
-        userRepository.save(user);
-        return ResponseEntity.ok(ApiResponse.ok("Compte désactivé"));
+    @Operation(summary = "Désactiver un compte utilisateur")
+    Mono<ResponseEntity<ApiResponse<Void>>> desactiver(@PathVariable UUID id) {
+        return userRepository.findById(id)
+                .switchIfEmpty(Mono.error(new com.cscm.backend.exception.BusinessException("Utilisateur introuvable")))
+                .flatMap(user -> {
+                    user.setCompteActif(false);
+                    return userRepository.save(user);
+                })
+                .thenReturn(ResponseEntity.ok(ApiResponse.<Void>ok("Compte désactivé")));
     }
 
     @PutMapping("/users/{id}/activer")
-    @Operation(summary = "Activer un compte")
-    public ResponseEntity<ApiResponse<Void>> activer(@PathVariable UUID id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new com.cscm.backend.exception.ResourceNotFoundException("Utilisateur introuvable"));
-        user.setCompteActif(true);
-        userRepository.save(user);
-        return ResponseEntity.ok(ApiResponse.ok("Compte activé"));
+    @Operation(summary = "Activer un compte utilisateur")
+    Mono<ResponseEntity<ApiResponse<Void>>> activer(@PathVariable UUID id) {
+        return userRepository.findById(id)
+                .switchIfEmpty(Mono.error(new com.cscm.backend.exception.BusinessException("Utilisateur introuvable")))
+                .flatMap(user -> {
+                    user.setCompteActif(true);
+                    return userRepository.save(user);
+                })
+                .thenReturn(ResponseEntity.ok(ApiResponse.<Void>ok("Compte activé")));
     }
 
     @GetMapping("/medecins/pending")
     @Operation(summary = "Médecins en attente de validation")
-    public ResponseEntity<ApiResponse<Page<?>>> getMedecinsPending(@PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.success(medecinService.getMedecinsByStatus(MedecinStatus.EN_ATTENTE, pageable)));
+    Mono<ResponseEntity<ApiResponse<?>>> getMedecinsPending(
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "0") long offset) {
+        return medecinService.getMedecinsEnAttente(size, offset)
+                .collectList()
+                .map(list -> ResponseEntity.ok(ApiResponse.success(list)));
+    }
+
+    @PutMapping("/medecins/{id}/valider")
+    @Operation(summary = "Valider l'inscription d'un médecin")
+    Mono<ResponseEntity<ApiResponse<?>>> validerMedecin(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal String adminIdStr) {
+        return medecinService.validerMedecin(id, UUID.fromString(adminIdStr))
+                .map(m -> ResponseEntity.ok(ApiResponse.success(m, "Médecin validé")));
+    }
+
+    @PutMapping("/medecins/{id}/rejeter")
+    @Operation(summary = "Rejeter l'inscription d'un médecin")
+    Mono<ResponseEntity<ApiResponse<Void>>> rejeterMedecin(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal String adminIdStr,
+            @RequestBody Map<String, String> body) {
+        return medecinService.rejeterMedecin(id, UUID.fromString(adminIdStr), body.get("raison"))
+                .thenReturn(ResponseEntity.ok(ApiResponse.<Void>ok("Médecin rejeté")));
+    }
+
+    @PutMapping("/medecins/{id}/suspendre")
+    @Operation(summary = "Suspendre un médecin")
+    Mono<ResponseEntity<ApiResponse<Void>>> suspendMedecin(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal String adminIdStr) {
+        return medecinService.suspendMedecin(id, UUID.fromString(adminIdStr))
+                .thenReturn(ResponseEntity.ok(ApiResponse.<Void>ok("Médecin suspendu")));
     }
 
     @GetMapping("/audit-logs")
-    @Operation(summary = "Journaux d'audit")
-    public ResponseEntity<ApiResponse<?>> getAuditLogs(@PageableDefault(size = 50) Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.success(auditLogRepository.findAll(pageable)));
+    @Operation(summary = "Journaux d'audit paginés")
+    Mono<ResponseEntity<ApiResponse<?>>> getAuditLogs(
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(defaultValue = "0") long offset) {
+        return auditLogRepository.findAllPaged(size, offset)
+                .collectList()
+                .map(list -> ResponseEntity.ok(ApiResponse.success(list)));
     }
 
     @GetMapping("/audit-logs/user/{userId}")
     @Operation(summary = "Logs d'un utilisateur")
-    public ResponseEntity<ApiResponse<?>> getByUser(@PathVariable UUID userId, @PageableDefault(size = 50) Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.success(auditLogRepository.findByUserId(userId, pageable)));
+    Mono<ResponseEntity<ApiResponse<?>>> getByUser(
+            @PathVariable UUID userId,
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(defaultValue = "0") long offset) {
+        return auditLogRepository.findByUserId(userId, size, offset)
+                .collectList()
+                .map(list -> ResponseEntity.ok(ApiResponse.success(list)));
     }
 
     @GetMapping("/stats")
-    @Operation(summary = "Statistiques globales")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getStats() {
-        Map<String, Object> stats = new HashMap<>();
-        stats.put("totalPatients", patientRepository.count());
-        stats.put("totalMedecins", medecinRepository.count());
-        stats.put("medecinsPendants", medecinRepository.countByStatus(MedecinStatus.EN_ATTENTE));
-        stats.put("medecinsValides", medecinRepository.countByStatus(MedecinStatus.VALIDE));
-        stats.put("totalUtilisateurs", userRepository.count());
-        stats.put("abonnementsActifs", abonnementRepository.countByStatut(com.cscm.backend.enums.AbonnementStatut.ACTIF));
-        return ResponseEntity.ok(ApiResponse.success(stats));
+    @Operation(summary = "Statistiques globales de la plateforme")
+    Mono<ResponseEntity<ApiResponse<Map<String, Object>>>> getStats() {
+        return Mono.zip(
+                patientRepository.count(),
+                medecinRepository.count(),
+                medecinRepository.countByStatus(MedecinStatus.EN_ATTENTE),
+                medecinRepository.countByStatus(MedecinStatus.VALIDE),
+                userRepository.count(),
+                abonnementRepository.countByStatut(com.cscm.backend.enums.AbonnementStatut.ACTIF)
+        ).map(tuple -> {
+            Map<String, Object> stats = Map.of(
+                    "totalPatients", tuple.getT1(),
+                    "totalMedecins", tuple.getT2(),
+                    "medecinsPendants", tuple.getT3(),
+                    "medecinsValides", tuple.getT4(),
+                    "totalUtilisateurs", tuple.getT5(),
+                    "abonnementsActifs", tuple.getT6()
+            );
+            return ResponseEntity.ok(ApiResponse.success(stats));
+        });
     }
 }
