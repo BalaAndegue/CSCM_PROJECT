@@ -7,7 +7,7 @@ import com.cscm.backend.repository.ApprobationMedecinRepository;
 import com.cscm.backend.repository.CarnetMedicalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Mono;
 
 import java.util.UUID;
 
@@ -18,37 +18,39 @@ public class CarnetService {
     private final CarnetMedicalRepository carnetMedicalRepository;
     private final ApprobationMedecinRepository approbationMedecinRepository;
 
-    public CarnetMedical getCarnetByPatientId(UUID patientId) {
+    public Mono<CarnetMedical> getCarnetByPatientId(UUID patientId) {
         return carnetMedicalRepository.findByPatientId(patientId)
-                .orElseThrow(() -> new ResourceNotFoundException("Carnet médical introuvable"));
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Carnet médical introuvable")));
     }
 
-    public CarnetMedical getCarnetById(UUID id) {
+    public Mono<CarnetMedical> getCarnetById(UUID id) {
         return carnetMedicalRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Carnet introuvable: " + id));
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Carnet introuvable: " + id)));
     }
 
-    public CarnetMedical getCarnetByIdWithMedecinAccess(UUID carnetId, UUID medecinId) {
-        CarnetMedical carnet = getCarnetById(carnetId);
-        boolean approved = approbationMedecinRepository
-                .existsByCarnetIdAndMedecinIdAndActifTrue(carnetId, medecinId);
-        if (!approved) {
-            throw new AccessDeniedException("Vous n'avez pas les droits pour accéder à ce carnet");
-        }
-        return carnet;
+    public Mono<CarnetMedical> getCarnetByIdWithMedecinAccess(UUID carnetId, UUID medecinId) {
+        return getCarnetById(carnetId)
+                .flatMap(carnet ->
+                        approbationMedecinRepository.existsByCarnetIdAndMedecinIdAndActifTrue(carnetId, medecinId)
+                                .flatMap(approved -> approved
+                                        ? Mono.just(carnet)
+                                        : Mono.error(new AccessDeniedException("Vous n'avez pas les droits pour accéder à ce carnet")))
+                );
     }
 
-    @Transactional
-    public CarnetMedical archiverCarnet(UUID id) {
-        CarnetMedical carnet = getCarnetById(id);
-        carnet.setStatut("archive");
-        return carnetMedicalRepository.save(carnet);
+    public Mono<CarnetMedical> archiverCarnet(UUID id) {
+        return getCarnetById(id)
+                .flatMap(carnet -> {
+                    carnet.setStatut("archive");
+                    return carnetMedicalRepository.save(carnet);
+                });
     }
 
-    @Transactional
-    public CarnetMedical updateNotes(UUID id, String notes) {
-        CarnetMedical carnet = getCarnetById(id);
-        carnet.setNotesGenerales(notes);
-        return carnetMedicalRepository.save(carnet);
+    public Mono<CarnetMedical> updateNotes(UUID id, String notes) {
+        return getCarnetById(id)
+                .flatMap(carnet -> {
+                    carnet.setNotesGenerales(notes);
+                    return carnetMedicalRepository.save(carnet);
+                });
     }
 }

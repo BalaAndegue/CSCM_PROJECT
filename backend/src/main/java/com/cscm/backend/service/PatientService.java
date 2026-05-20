@@ -1,13 +1,12 @@
 package com.cscm.backend.service;
 
 import com.cscm.backend.entity.Patient;
-import com.cscm.backend.exception.ResourceNotFoundException;
+import com.cscm.backend.exception.BusinessException;
 import com.cscm.backend.repository.PatientRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.UUID;
 
@@ -17,43 +16,73 @@ public class PatientService {
 
     private final PatientRepository patientRepository;
 
-    public Page<Patient> getAllPatients(Pageable pageable) {
-        return patientRepository.findAll(pageable);
+    public Flux<Patient> searchPatients(String query, int size, long offset) {
+        return patientRepository.searchPatients(query, size, offset);
     }
 
-    public Page<Patient> searchPatients(String query, Pageable pageable) {
-        return patientRepository.searchPatients(query, pageable);
-    }
-
-    public Patient getPatientById(UUID id) {
+    public Mono<Patient> getPatientById(UUID id) {
         return patientRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Patient introuvable: " + id));
+                .switchIfEmpty(Mono.error(new BusinessException("Patient introuvable: " + id)));
     }
 
-    public Patient getPatientByUserId(UUID userId) {
+    public Mono<Patient> getPatientByUserId(UUID userId) {
         return patientRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Profil patient introuvable"));
+                .switchIfEmpty(Mono.error(new BusinessException("Profil patient introuvable")));
     }
 
-    public Patient getPatientByNumeroCarnet(String numeroCarnet) {
-        return patientRepository.findByNumeroCarnet(numeroCarnet)
-                .orElseThrow(() -> new ResourceNotFoundException("Carnet introuvable: " + numeroCarnet));
+    public Mono<Patient> getPatientByNumeroCNI(String numeroCNI) {
+        return patientRepository.findByNumeroCNI(numeroCNI)
+                .switchIfEmpty(Mono.error(new BusinessException("Aucun patient avec ce numéro CNI")));
     }
 
-    @Transactional
-    public Patient updatePatient(UUID id, Patient updates) {
-        Patient patient = getPatientById(id);
-        if (updates.getAdresse() != null) patient.setAdresse(updates.getAdresse());
-        if (updates.getTelephone() != null) patient.setTelephone(updates.getTelephone());
-        if (updates.getSituationFamiliale() != null) patient.setSituationFamiliale(updates.getSituationFamiliale());
-        if (updates.getProfession() != null) patient.setProfession(updates.getProfession());
-        if (updates.getGroupeSanguin() != null) patient.setGroupeSanguin(updates.getGroupeSanguin());
-        if (updates.getAntecedentsChirurgicaux() != null) patient.setAntecedentsChirurgicaux(updates.getAntecedentsChirurgicaux());
-        if (updates.getAntecedentsFamiliaux() != null) patient.setAntecedentsFamiliaux(updates.getAntecedentsFamiliaux());
-        if (updates.getAntecedentsMedicaux() != null) patient.setAntecedentsMedicaux(updates.getAntecedentsMedicaux());
-        if (updates.getContactUrgenceNom() != null) patient.setContactUrgenceNom(updates.getContactUrgenceNom());
-        if (updates.getContactUrgenceTelephone() != null) patient.setContactUrgenceTelephone(updates.getContactUrgenceTelephone());
-        if (updates.getMedecinTraitantId() != null) patient.setMedecinTraitantId(updates.getMedecinTraitantId());
-        return patientRepository.save(patient);
+    public Mono<Patient> updatePatient(UUID patientId, UUID requestingUserId, Patient updates) {
+        return patientRepository.findById(patientId)
+                .switchIfEmpty(Mono.error(new BusinessException("Patient introuvable")))
+                .flatMap(patient -> {
+                    if (!patient.getUserId().equals(requestingUserId)) {
+                        return Mono.error(new BusinessException("Accès non autorisé"));
+                    }
+                    if (updates.getAdresse() != null) patient.setAdresse(updates.getAdresse());
+                    if (updates.getTelephone() != null) patient.setTelephone(updates.getTelephone());
+                    if (updates.getSituationFamiliale() != null) patient.setSituationFamiliale(updates.getSituationFamiliale());
+                    if (updates.getProfession() != null) patient.setProfession(updates.getProfession());
+                    if (updates.getGroupeSanguin() != null) patient.setGroupeSanguin(updates.getGroupeSanguin());
+                    if (updates.getVille() != null) patient.setVille(updates.getVille());
+                    if (updates.getRegionResidence() != null) patient.setRegionResidence(updates.getRegionResidence());
+                    if (updates.getAntecedentsChirurgicaux() != null) patient.setAntecedentsChirurgicaux(updates.getAntecedentsChirurgicaux());
+                    if (updates.getAntecedentsFamiliaux() != null) patient.setAntecedentsFamiliaux(updates.getAntecedentsFamiliaux());
+                    if (updates.getAntecedentsMedicaux() != null) patient.setAntecedentsMedicaux(updates.getAntecedentsMedicaux());
+                    if (updates.getContactUrgenceNom() != null) patient.setContactUrgenceNom(updates.getContactUrgenceNom());
+                    if (updates.getContactUrgenceTelephone() != null) patient.setContactUrgenceTelephone(updates.getContactUrgenceTelephone());
+                    return patientRepository.save(patient);
+                });
+    }
+
+    public Mono<Patient> updateGarant(UUID patientId, UUID requestingUserId,
+                                       String garantNomComplet, String garantTelephone,
+                                       com.cscm.backend.enums.LienParente garantLienParente,
+                                       String garantNumeroCNI, String garantEmail) {
+        return patientRepository.findById(patientId)
+                .switchIfEmpty(Mono.error(new BusinessException("Patient introuvable")))
+                .flatMap(patient -> {
+                    if (!patient.getUserId().equals(requestingUserId)) {
+                        return Mono.error(new BusinessException("Accès non autorisé"));
+                    }
+                    if (garantNomComplet != null) patient.setGarantNomComplet(garantNomComplet);
+                    if (garantTelephone != null) patient.setGarantTelephone(garantTelephone);
+                    if (garantLienParente != null) patient.setGarantLienParente(garantLienParente);
+                    if (garantNumeroCNI != null) patient.setGarantNumeroCNI(garantNumeroCNI);
+                    if (garantEmail != null) patient.setGarantEmail(garantEmail);
+                    return patientRepository.save(patient);
+                });
+    }
+
+    public Mono<Patient> activerAccesGarant(UUID patientId, boolean activer) {
+        return patientRepository.findById(patientId)
+                .switchIfEmpty(Mono.error(new BusinessException("Patient introuvable")))
+                .flatMap(patient -> {
+                    patient.setGarantAccesActif(activer);
+                    return patientRepository.save(patient);
+                });
     }
 }
