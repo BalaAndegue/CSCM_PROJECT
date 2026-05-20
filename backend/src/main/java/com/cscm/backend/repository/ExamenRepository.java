@@ -1,16 +1,20 @@
 package com.cscm.backend.repository;
 
 import com.cscm.backend.entity.Examen;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.r2dbc.repository.Query;
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
+import reactor.core.publisher.Flux;
 
 import java.util.UUID;
 
-@Repository
-public interface ExamenRepository extends JpaRepository<Examen, UUID> {
-    Page<Examen> findByCarnetId(UUID carnetId, Pageable pageable);
-    Page<Examen> findByMedecinPrescripteurId(UUID medecinId, Pageable pageable);
-    Page<Examen> findByCarnetIdAndTypeExamenContainingIgnoreCase(UUID carnetId, String typeExamen, Pageable pageable);
+public interface ExamenRepository extends R2dbcRepository<Examen, UUID> {
+
+    Flux<Examen> findByCarnetId(UUID carnetId);
+    Flux<Examen> findByMedecinPrescripteurId(UUID medecinId);
+
+    @Query("SELECT * FROM examens WHERE carnet_id = :carnetId ORDER BY date_prescription DESC LIMIT :size OFFSET :offset")
+    Flux<Examen> findByCarnetIdPaged(UUID carnetId, int size, long offset);
+
+    @Query("SELECT * FROM examens WHERE carnet_id = :carnetId AND LOWER(type_examen) LIKE LOWER(CONCAT('%', :type, '%'))")
+    Flux<Examen> findByCarnetIdAndTypeContaining(UUID carnetId, String type);
 }

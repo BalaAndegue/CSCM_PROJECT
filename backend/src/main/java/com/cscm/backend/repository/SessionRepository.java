@@ -1,25 +1,24 @@
 package com.cscm.backend.repository;
 
 import com.cscm.backend.entity.Session;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.r2dbc.repository.Modifying;
+import org.springframework.data.r2dbc.repository.Query;
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
+import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
-import java.util.Optional;
 import java.util.UUID;
 
-@Repository
-public interface SessionRepository extends JpaRepository<Session, UUID> {
-    Optional<Session> findByTokenHash(String tokenHash);
-    Optional<Session> findByRefreshTokenHash(String refreshTokenHash);
+public interface SessionRepository extends R2dbcRepository<Session, UUID> {
+
+    Mono<Session> findByTokenHash(String tokenHash);
+    Mono<Session> findByRefreshTokenHash(String refreshTokenHash);
 
     @Modifying
-    @Query("UPDATE Session s SET s.invalide = true WHERE s.user.id = :userId")
-    void invalidateAllUserSessions(UUID userId);
+    @Query("UPDATE sessions SET invalide = TRUE WHERE user_id = :userId AND invalide = FALSE")
+    Mono<Integer> invalidateAllUserSessions(UUID userId);
 
     @Modifying
-    @Query("DELETE FROM Session s WHERE s.expireAt < :now OR s.invalide = true")
-    void deleteExpiredSessions(LocalDateTime now);
+    @Query("DELETE FROM sessions WHERE expire_at < :now OR invalide = TRUE")
+    Mono<Integer> deleteExpiredSessions(LocalDateTime now);
 }

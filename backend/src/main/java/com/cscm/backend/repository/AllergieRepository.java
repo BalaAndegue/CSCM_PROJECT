@@ -1,15 +1,14 @@
 package com.cscm.backend.repository;
 
 import com.cscm.backend.entity.Allergie;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
+import reactor.core.publisher.Flux;
 
-import java.util.List;
 import java.util.UUID;
 
-@Repository
-public interface AllergieRepository extends JpaRepository<Allergie, UUID> {
-    List<Allergie> findByCarnetIdAndActiveTrue(UUID carnetId);
-    List<Allergie> findByCarnetId(UUID carnetId);
-    List<Allergie> findByCarnetIdAndVisibleTousMedecinsTrue(UUID carnetId);
+public interface AllergieRepository extends R2dbcRepository<Allergie, UUID> {
+
+    Flux<Allergie> findByCarnetId(UUID carnetId);
+    Flux<Allergie> findByCarnetIdAndActiveTrue(UUID carnetId);
+    Flux<Allergie> findByCarnetIdAndVisibleTousMedecinsTrue(UUID carnetId);
 }

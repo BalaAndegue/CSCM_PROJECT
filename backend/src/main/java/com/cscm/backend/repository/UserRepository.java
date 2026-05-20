@@ -2,20 +2,26 @@ package com.cscm.backend.repository;
 
 import com.cscm.backend.entity.User;
 import com.cscm.backend.enums.UserRole;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.r2dbc.repository.Query;
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.util.Optional;
 import java.util.UUID;
 
-@Repository
-public interface UserRepository extends JpaRepository<User, UUID> {
-    Optional<User> findByEmail(String email);
-    boolean existsByEmail(String email);
-    Optional<User> findByTokenReinitialisation(String token);
-    Optional<User> findByTokenVerificationEmail(String token);
-    Page<User> findByRole(UserRole role, Pageable pageable);
-    long countByRole(UserRole role);
+public interface UserRepository extends R2dbcRepository<User, UUID> {
+
+    Mono<User> findByEmail(String email);
+    Mono<Boolean> existsByEmail(String email);
+    Mono<User> findByMatricule(String matricule);
+    Mono<User> findByTokenReinitialisation(String token);
+    Mono<User> findByTokenVerificationEmail(String token);
+    Flux<User> findByRole(UserRole role);
+    Mono<Long> countByRole(UserRole role);
+
+    @Query("SELECT * FROM users WHERE role = :role AND compte_actif = TRUE ORDER BY created_at DESC LIMIT :size OFFSET :offset")
+    Flux<User> findActiveByRolePaged(String role, int size, long offset);
+
+    @Query("SELECT nextval('seq_matricule_admin')")
+    Mono<Long> nextMatriculeSequence();
 }

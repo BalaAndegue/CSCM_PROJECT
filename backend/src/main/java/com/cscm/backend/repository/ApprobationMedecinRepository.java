@@ -1,21 +1,34 @@
 package com.cscm.backend.repository;
 
 import com.cscm.backend.entity.ApprobationMedecin;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.r2dbc.repository.Modifying;
+import org.springframework.data.r2dbc.repository.Query;
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.util.List;
-import java.util.Optional;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Repository
-public interface ApprobationMedecinRepository extends JpaRepository<ApprobationMedecin, UUID> {
-    List<ApprobationMedecin> findByCarnetIdAndActifTrue(UUID carnetId);
-    Optional<ApprobationMedecin> findByCarnetIdAndMedecinId(UUID carnetId, UUID medecinId);
-    List<ApprobationMedecin> findByMedecinIdAndActifTrue(UUID medecinId);
-    boolean existsByCarnetIdAndMedecinIdAndActifTrue(UUID carnetId, UUID medecinId);
+public interface ApprobationMedecinRepository extends R2dbcRepository<ApprobationMedecin, UUID> {
 
-    @org.springframework.data.jpa.repository.Modifying
-    @org.springframework.data.jpa.repository.Query("UPDATE ApprobationMedecin a SET a.actif = false, a.dateRevocation = :now, a.motifRevocation = 'Expiration automatique (24h)' WHERE a.actif = true AND a.dateExpiration < :now")
-    int revokeExpiredApprobations(@org.springframework.data.repository.query.Param("now") java.time.LocalDateTime now);
+    Flux<ApprobationMedecin> findByCarnetIdAndActifTrue(UUID carnetId);
+    Mono<ApprobationMedecin> findByCarnetIdAndMedecinId(UUID carnetId, UUID medecinId);
+    Flux<ApprobationMedecin> findByMedecinIdAndActifTrue(UUID medecinId);
+    Mono<Boolean> existsByCarnetIdAndMedecinIdAndActifTrue(UUID carnetId, UUID medecinId);
+
+    @Query("SELECT * FROM approbations_medecins WHERE carnet_id = :carnetId AND actif = TRUE AND est_medecin_personnel = TRUE")
+    Flux<ApprobationMedecin> findMedecinsPersonnelsByCarnet(UUID carnetId);
+
+    @Modifying
+    @Query("""
+        UPDATE approbations_medecins
+        SET actif = FALSE, date_revocation = :now, motif_revocation = 'Expiration automatique'
+        WHERE actif = TRUE AND date_expiration IS NOT NULL AND date_expiration < :now
+        """)
+    Mono<Integer> revokeExpiredApprobations(LocalDateTime now);
+
+    @Modifying
+    @Query("UPDATE approbations_medecins SET actif = FALSE, date_revocation = NOW() WHERE carnet_id = :carnetId AND actif = TRUE")
+    Mono<Integer> revokeAllForCarnet(UUID carnetId);
 }

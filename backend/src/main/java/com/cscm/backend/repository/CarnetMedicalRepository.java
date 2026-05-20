@@ -1,15 +1,14 @@
 package com.cscm.backend.repository;
 
 import com.cscm.backend.entity.CarnetMedical;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
+import reactor.core.publisher.Mono;
 
-import java.util.Optional;
 import java.util.UUID;
 
-@Repository
-public interface CarnetMedicalRepository extends JpaRepository<CarnetMedical, UUID> {
-    Optional<CarnetMedical> findByPatientId(UUID patientId);
-    Optional<CarnetMedical> findByPatientIdAndStatut(UUID patientId, String statut);
-    boolean existsByPatientId(UUID patientId);
+public interface CarnetMedicalRepository extends R2dbcRepository<CarnetMedical, UUID> {
+
+    Mono<CarnetMedical> findByPatientId(UUID patientId);
+    Mono<CarnetMedical> findByPatientIdAndStatut(UUID patientId, String statut);
+    Mono<Boolean> existsByPatientId(UUID patientId);
 }

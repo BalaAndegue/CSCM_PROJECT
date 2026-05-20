@@ -2,20 +2,21 @@ package com.cscm.backend.repository;
 
 import com.cscm.backend.entity.Ordonnance;
 import com.cscm.backend.enums.OrdonnanceStatus;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.r2dbc.repository.Query;
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
-@Repository
-public interface OrdonnanceRepository extends JpaRepository<Ordonnance, UUID> {
-    Page<Ordonnance> findByCarnetId(UUID carnetId, Pageable pageable);
-    Page<Ordonnance> findByMedecinId(UUID medecinId, Pageable pageable);
-    List<Ordonnance> findByCarnetIdAndStatus(UUID carnetId, OrdonnanceStatus status);
-    Optional<Ordonnance> findByNumeroOrdonnance(String numeroOrdonnance);
-    boolean existsByNumeroOrdonnance(String numeroOrdonnance);
+public interface OrdonnanceRepository extends R2dbcRepository<Ordonnance, UUID> {
+
+    Flux<Ordonnance> findByCarnetId(UUID carnetId);
+    Flux<Ordonnance> findByMedecinId(UUID medecinId);
+    Flux<Ordonnance> findByCarnetIdAndStatus(UUID carnetId, OrdonnanceStatus status);
+    Mono<Ordonnance> findByNumeroOrdonnance(String numeroOrdonnance);
+    Mono<Boolean> existsByNumeroOrdonnance(String numeroOrdonnance);
+
+    @Query("SELECT * FROM ordonnances WHERE carnet_id = :carnetId ORDER BY date_prescription DESC LIMIT :size OFFSET :offset")
+    Flux<Ordonnance> findByCarnetIdPaged(UUID carnetId, int size, long offset);
 }
