@@ -1,0 +1,29 @@
+package com.cscm.backend.enums;
+
+public enum TypeNotification {
+    // Accès carnet
+    DEMANDE_ACCES_QR,
+    DEMANDE_ACCES_CODE,
+    ACCES_ACCORDE,
+    ACCES_REVOQUE,
+    ACCES_EXPIRE,
+    // Médecin personnel
+    MEDECIN_PERSONNEL_ASSIGNE,
+    MEDECIN_PERSONNEL_RETIRE,
+    // Dossier médical
+    NOUVELLE_ORDONNANCE,
+    NOUVEL_EXAMEN,
+    RESULTAT_EXAMEN_DISPONIBLE,
+    NOUVELLE_CONSULTATION,
+    // Validation (admin / médecin)
+    INSCRIPTION_MEDECIN_VALIDEE,
+    INSCRIPTION_MEDECIN_REJETEE,
+    DOCUMENT_VALIDE,
+    DOCUMENT_REJETE,
+    DOCUMENT_EXPIRE_BIENTOT,
+    // Système
+    COMPTE_CREE,
+    RAPPEL_RDV,
+    ALERTE_SECURITE,
+    MESSAGE_ADMIN
+}
