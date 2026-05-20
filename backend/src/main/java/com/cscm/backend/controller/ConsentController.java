@@ -1,7 +1,6 @@
 package com.cscm.backend.controller;
 
 import com.cscm.backend.entity.ConsentDiagnosticHopital;
-import com.cscm.backend.entity.User;
 import com.cscm.backend.service.ConsentService;
 import com.cscm.backend.service.MedecinService;
 import com.cscm.backend.util.ApiResponse;
@@ -9,16 +8,12 @@ import com.cscm.backend.dto.request.DemandeConsentRequest;
 import com.cscm.backend.dto.request.MotifRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
 
 import java.util.UUID;
 
@@ -30,61 +25,65 @@ public class ConsentController {
 
     private final ConsentService consentService;
     private final MedecinService medecinService;
-    private final com.cscm.backend.repository.UserRepository userRepository;
 
     @GetMapping("/hopital/{hopitalId}")
-    @Operation(summary = "Consentements d'un hôpital")
     @PreAuthorize("hasAnyRole('MANAGER_HOPITAL', 'ADMIN')")
-    public ResponseEntity<ApiResponse<Page<ConsentDiagnosticHopital>>> getByHopital(
-            @PathVariable UUID hopitalId, @PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.success(consentService.getByHopital(hopitalId, pageable)));
+    @Operation(summary = "Consentements d'un hôpital")
+    Mono<ResponseEntity<ApiResponse<?>>> getByHopital(@PathVariable UUID hopitalId) {
+        return consentService.getByHopital(hopitalId)
+                .collectList()
+                .map(list -> ResponseEntity.ok(ApiResponse.success(list)));
     }
 
     @GetMapping("/hopital/{hopitalId}/pending")
-    @Operation(summary = "Consentements en attente (manager)")
     @PreAuthorize("hasAnyRole('MANAGER_HOPITAL', 'ADMIN')")
-    public ResponseEntity<ApiResponse<Page<ConsentDiagnosticHopital>>> getPending(
-            @PathVariable UUID hopitalId, @PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.success(consentService.getPendingByHopital(hopitalId, pageable)));
+    @Operation(summary = "Consentements en attente (manager)")
+    Mono<ResponseEntity<ApiResponse<?>>> getPending(
+            @PathVariable UUID hopitalId,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "0") long offset) {
+        return consentService.getPendingByHopital(hopitalId, size, offset)
+                .collectList()
+                .map(list -> ResponseEntity.ok(ApiResponse.success(list)));
     }
 
     @PostMapping
-    @Operation(summary = "Demander un consentement (médecin)")
     @PreAuthorize("hasRole('MEDECIN')")
-    public ResponseEntity<ApiResponse<ConsentDiagnosticHopital>> demander(
+    @Operation(summary = "Demander un consentement (médecin)")
+    Mono<ResponseEntity<ApiResponse<?>>> demander(
             @RequestBody DemandeConsentRequest req,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        var medecin = medecinService.getMedecinByUserId(user.getId());
-        ConsentDiagnosticHopital consent = consentService.demanderConsent(
-                req.getConsultationId(), medecin.getId(), req.getHopitalId(), req.getMotif());
-        return ResponseEntity.ok(ApiResponse.success(consent, "Demande de consentement envoyée"));
+            @AuthenticationPrincipal String userIdStr) {
+        return medecinService.getMedecinByUserId(UUID.fromString(userIdStr))
+                .flatMap(medecin -> consentService.demanderConsent(
+                        req.getConsultationId(), medecin.getId(), req.getHopitalId(), req.getMotif()))
+                .map(c -> ResponseEntity.ok(ApiResponse.success(c, "Demande de consentement envoyée")));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Détail d'un consentement")
-    public ResponseEntity<ApiResponse<ConsentDiagnosticHopital>> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.success(consentService.getById(id)));
+    Mono<ResponseEntity<ApiResponse<?>>> getById(@PathVariable UUID id) {
+        return consentService.getById(id)
+                .map(c -> ResponseEntity.ok(ApiResponse.success(c)));
     }
 
     @PutMapping("/{id}/approuver")
-    @Operation(summary = "Approuver le consentement (manager hôpital)")
     @PreAuthorize("hasAnyRole('MANAGER_HOPITAL', 'ADMIN')")
-    public ResponseEntity<ApiResponse<ConsentDiagnosticHopital>> approuver(
-            @PathVariable UUID id, @AuthenticationPrincipal UserDetails userDetails) {
-        User manager = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        return ResponseEntity.ok(ApiResponse.success(consentService.approuver(id, manager.getId()), "Consentement approuvé"));
+    @Operation(summary = "Approuver le consentement (manager hôpital)")
+    Mono<ResponseEntity<ApiResponse<?>>> approuver(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal String userIdStr) {
+        return consentService.approuver(id, UUID.fromString(userIdStr))
+                .map(c -> ResponseEntity.ok(ApiResponse.success(c, "Consentement approuvé")));
     }
 
     @PutMapping("/{id}/refuser")
-    @Operation(summary = "Refuser le consentement (manager hôpital)")
     @PreAuthorize("hasAnyRole('MANAGER_HOPITAL', 'ADMIN')")
-    public ResponseEntity<ApiResponse<ConsentDiagnosticHopital>> refuser(
+    @Operation(summary = "Refuser le consentement (manager hôpital)")
+    Mono<ResponseEntity<ApiResponse<?>>> refuser(
             @PathVariable UUID id,
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal String userIdStr,
             @RequestBody MotifRequest req) {
-        User manager = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        return ResponseEntity.ok(ApiResponse.success(consentService.refuser(id, manager.getId(), req.getMotif()), "Consentement refusé"));
+        return consentService.refuser(id, UUID.fromString(userIdStr), req.getMotif())
+                .map(c -> ResponseEntity.ok(ApiResponse.success(c, "Consentement refusé")));
     }
 }
-

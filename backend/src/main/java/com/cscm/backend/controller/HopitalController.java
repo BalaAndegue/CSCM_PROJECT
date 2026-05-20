@@ -7,14 +7,11 @@ import com.cscm.backend.util.ApiResponse;
 import com.cscm.backend.dto.request.ServiceRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
 
 import java.util.UUID;
 
@@ -28,60 +25,74 @@ public class HopitalController {
 
     @GetMapping
     @Operation(summary = "Lister les hôpitaux")
-    public ResponseEntity<ApiResponse<Page<Hopital>>> getAll(@PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.success(hopitalService.getAll(pageable)));
+    Mono<ResponseEntity<ApiResponse<?>>> getAll(
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "0") long offset) {
+        return hopitalService.getAll(size, offset)
+                .collectList()
+                .map(list -> ResponseEntity.ok(ApiResponse.success(list)));
     }
 
     @PostMapping
-    @Operation(summary = "Créer un hôpital (admin)")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Hopital>> create(@RequestBody Hopital data) {
-        return ResponseEntity.ok(ApiResponse.success(hopitalService.create(data), "Hôpital créé"));
+    @Operation(summary = "Créer un hôpital (admin)")
+    Mono<ResponseEntity<ApiResponse<?>>> create(@RequestBody Hopital data) {
+        return hopitalService.create(data)
+                .map(h -> ResponseEntity.ok(ApiResponse.success(h, "Hôpital créé")));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Détail d'un hôpital")
-    public ResponseEntity<ApiResponse<Hopital>> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.success(hopitalService.getById(id)));
+    Mono<ResponseEntity<ApiResponse<?>>> getById(@PathVariable UUID id) {
+        return hopitalService.getById(id)
+                .map(h -> ResponseEntity.ok(ApiResponse.success(h)));
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Modifier un hôpital")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER_HOPITAL')")
-    public ResponseEntity<ApiResponse<Hopital>> update(@PathVariable UUID id, @RequestBody Hopital updates) {
-        return ResponseEntity.ok(ApiResponse.success(hopitalService.update(id, updates), "Hôpital mis à jour"));
+    @Operation(summary = "Modifier un hôpital")
+    Mono<ResponseEntity<ApiResponse<?>>> update(
+            @PathVariable UUID id,
+            @RequestBody Hopital updates) {
+        return hopitalService.update(id, updates)
+                .map(h -> ResponseEntity.ok(ApiResponse.success(h, "Hôpital mis à jour")));
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Supprimer un hôpital (admin)")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
-        hopitalService.delete(id);
-        return ResponseEntity.ok(ApiResponse.ok("Hôpital supprimé"));
+    @Operation(summary = "Supprimer un hôpital (admin)")
+    Mono<ResponseEntity<ApiResponse<Void>>> delete(@PathVariable UUID id) {
+        return hopitalService.delete(id)
+                .thenReturn(ResponseEntity.ok(ApiResponse.ok("Hôpital supprimé")));
     }
 
     @PostMapping("/{id}/medecins/{medecinId}")
-    @Operation(summary = "Rattacher un médecin à l'hôpital")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER_HOPITAL')")
-    public ResponseEntity<ApiResponse<MedecinHopital>> rattacherMedecin(
-            @PathVariable UUID id, @PathVariable UUID medecinId,
+    @Operation(summary = "Rattacher un médecin à l'hôpital")
+    Mono<ResponseEntity<ApiResponse<?>>> rattacherMedecin(
+            @PathVariable UUID id,
+            @PathVariable UUID medecinId,
             @RequestBody(required = false) ServiceRequest req) {
         String service = req != null ? req.getService() : null;
-        return ResponseEntity.ok(ApiResponse.success(hopitalService.rattacherMedecin(id, medecinId, service), "Médecin rattaché"));
+        return hopitalService.rattacherMedecin(id, medecinId, service)
+                .map(mh -> ResponseEntity.ok(ApiResponse.success(mh, "Médecin rattaché")));
     }
 
     @DeleteMapping("/{id}/medecins/{medecinId}")
-    @Operation(summary = "Détacher un médecin de l'hôpital")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER_HOPITAL')")
-    public ResponseEntity<ApiResponse<Void>> detacherMedecin(@PathVariable UUID id, @PathVariable UUID medecinId) {
-        hopitalService.detacherMedecin(id, medecinId);
-        return ResponseEntity.ok(ApiResponse.ok("Médecin détaché"));
+    @Operation(summary = "Détacher un médecin de l'hôpital")
+    Mono<ResponseEntity<ApiResponse<Void>>> detacherMedecin(
+            @PathVariable UUID id,
+            @PathVariable UUID medecinId) {
+        return hopitalService.detacherMedecin(id, medecinId)
+                .thenReturn(ResponseEntity.ok(ApiResponse.ok("Médecin détaché")));
     }
 
     @GetMapping("/{id}/medecins")
     @Operation(summary = "Médecins d'un hôpital")
-    public ResponseEntity<ApiResponse<?>> getMedecins(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.success(hopitalService.getMedecinsHopital(id)));
+    Mono<ResponseEntity<ApiResponse<?>>> getMedecins(@PathVariable UUID id) {
+        return hopitalService.getMedecinsHopital(id)
+                .collectList()
+                .map(list -> ResponseEntity.ok(ApiResponse.success(list)));
     }
 }
-

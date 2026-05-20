@@ -1,7 +1,6 @@
 package com.cscm.backend.controller;
 
 import com.cscm.backend.entity.Allergie;
-import com.cscm.backend.entity.User;
 import com.cscm.backend.service.AllergieService;
 import com.cscm.backend.service.MedecinService;
 import com.cscm.backend.util.ApiResponse;
@@ -11,65 +10,73 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/allergies")
 @RequiredArgsConstructor
-@Tag(name = "Allergies", description = "Gestion des allergies (priorité haute)")
+@Tag(name = "Allergies", description = "Gestion des allergies – priorité haute")
 public class AllergieController {
 
     private final AllergieService allergieService;
     private final MedecinService medecinService;
-    private final com.cscm.backend.repository.UserRepository userRepository;
 
     @GetMapping("/carnet/{carnetId}")
     @Operation(summary = "Toutes les allergies d'un carnet")
-    public ResponseEntity<ApiResponse<List<Allergie>>> getByCarnet(@PathVariable UUID carnetId) {
-        return ResponseEntity.ok(ApiResponse.success(allergieService.getByCarnet(carnetId)));
+    Mono<ResponseEntity<ApiResponse<?>>> getByCarnet(@PathVariable UUID carnetId) {
+        return allergieService.getByCarnet(carnetId)
+                .collectList()
+                .map(list -> ResponseEntity.ok(ApiResponse.success(list)));
     }
 
     @GetMapping("/carnet/{carnetId}/actives")
     @Operation(summary = "Allergies actives d'un carnet")
-    public ResponseEntity<ApiResponse<List<Allergie>>> getActives(@PathVariable UUID carnetId) {
-        return ResponseEntity.ok(ApiResponse.success(allergieService.getActivesByCarnet(carnetId)));
+    Mono<ResponseEntity<ApiResponse<?>>> getActives(@PathVariable UUID carnetId) {
+        return allergieService.getActivesByCarnet(carnetId)
+                .collectList()
+                .map(list -> ResponseEntity.ok(ApiResponse.success(list)));
     }
 
     @PostMapping("/carnet/{carnetId}")
-    @Operation(summary = "Ajouter une allergie")
     @PreAuthorize("hasAnyRole('MEDECIN', 'PATIENT')")
-    public ResponseEntity<ApiResponse<Allergie>> create(
+    @Operation(summary = "Ajouter une allergie")
+    Mono<ResponseEntity<ApiResponse<?>>> create(
             @PathVariable UUID carnetId,
             @RequestBody Allergie data,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        UUID medecinId = null;
-        try { medecinId = medecinService.getMedecinByUserId(user.getId()).getId(); } catch (Exception e) { /* patient */ }
-        return ResponseEntity.ok(ApiResponse.success(allergieService.create(carnetId, data, medecinId), "Allergie ajoutée"));
+            @AuthenticationPrincipal String userIdStr) {
+        UUID userId = UUID.fromString(userIdStr);
+        return medecinService.getMedecinByUserId(userId)
+                .map(m -> m.getId())
+                .onErrorReturn((UUID) null)
+                .flatMap(medecinId -> allergieService.create(carnetId, data, medecinId))
+                .map(a -> ResponseEntity.ok(ApiResponse.success(a, "Allergie ajoutée")));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Détail d'une allergie")
-    public ResponseEntity<ApiResponse<Allergie>> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.success(allergieService.getById(id)));
+    Mono<ResponseEntity<ApiResponse<?>>> getById(@PathVariable UUID id) {
+        return allergieService.getById(id)
+                .map(a -> ResponseEntity.ok(ApiResponse.success(a)));
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Modifier une allergie")
     @PreAuthorize("hasAnyRole('MEDECIN', 'PATIENT', 'ADMIN')")
-    public ResponseEntity<ApiResponse<Allergie>> update(@PathVariable UUID id, @RequestBody Allergie updates) {
-        return ResponseEntity.ok(ApiResponse.success(allergieService.update(id, updates), "Allergie mise à jour"));
+    @Operation(summary = "Modifier une allergie")
+    Mono<ResponseEntity<ApiResponse<?>>> update(
+            @PathVariable UUID id,
+            @RequestBody Allergie updates) {
+        return allergieService.update(id, updates)
+                .map(a -> ResponseEntity.ok(ApiResponse.success(a, "Allergie mise à jour")));
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Supprimer une allergie")
     @PreAuthorize("hasAnyRole('MEDECIN', 'ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
-        allergieService.delete(id);
-        return ResponseEntity.ok(ApiResponse.ok("Allergie supprimée"));
+    @Operation(summary = "Supprimer une allergie")
+    Mono<ResponseEntity<ApiResponse<Void>>> delete(@PathVariable UUID id) {
+        return allergieService.delete(id)
+                .thenReturn(ResponseEntity.ok(ApiResponse.ok("Allergie supprimée")));
     }
 }
