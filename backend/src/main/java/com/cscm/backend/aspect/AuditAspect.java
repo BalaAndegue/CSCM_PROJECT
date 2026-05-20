@@ -1,69 +1,74 @@
 package com.cscm.backend.aspect;
 
 import com.cscm.backend.entity.AuditLog;
-import com.cscm.backend.entity.User;
 import com.cscm.backend.repository.AuditLogRepository;
-import com.cscm.backend.repository.UserRepository;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.aspectj.lang.JoinPoint;
-import org.aspectj.lang.annotation.AfterReturning;
-import org.aspectj.lang.annotation.Aspect;
-import org.aspectj.lang.annotation.Pointcut;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.stereotype.Component;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.WebFilter;
+import org.springframework.web.server.WebFilterChain;
+import reactor.core.publisher.Mono;
 
-@Aspect
+import java.util.Set;
+import java.util.UUID;
+
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class AuditAspect {
+public class AuditAspect implements WebFilter {
+
+    private static final Set<HttpMethod> MUTABLE_METHODS = Set.of(
+            HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE, HttpMethod.PATCH);
 
     private final AuditLogRepository auditLogRepository;
-    private final UserRepository userRepository;
 
-    @Pointcut("@annotation(org.springframework.web.bind.annotation.PostMapping) || " +
-              "@annotation(org.springframework.web.bind.annotation.PutMapping) || " +
-              "@annotation(org.springframework.web.bind.annotation.DeleteMapping)")
-    public void mutableEndpoint() {}
-
-    @AfterReturning(pointcut = "mutableEndpoint()", returning = "result")
-    public void logAuditActivity(JoinPoint joinPoint, Object result) {
-        try {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth == null || !auth.isAuthenticated() || auth.getPrincipal().equals("anonymousUser")) {
-                return; // Ne pas auditer les actions non authentifiées via cet aspect (ex: login/register)
-            }
-
-            String email = ((UserDetails) auth.getPrincipal()).getUsername();
-            User user = userRepository.findByEmail(email).orElse(null);
-
-            HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest();
-
-            String methodName = joinPoint.getSignature().getName();
-            String className = joinPoint.getTarget().getClass().getSimpleName();
-            String action = request.getMethod() + " " + request.getRequestURI();
-
-            AuditLog auditLog = AuditLog.builder()
-                    .userId(user != null ? user.getId() : null)
-                    .userEmail(email)
-                    .userRole(user != null ? user.getRole().name() : "UNKNOWN")
-                    .action(action)
-                    .description("Method: " + className + "." + methodName)
-                    .ipAddress(request.getRemoteAddr())
-                    .userAgent(request.getHeader("User-Agent"))
-                    .build();
-
-            auditLogRepository.save(auditLog);
-            log.debug("Audit record created for user: {} action: {}", email, action);
-
-        } catch (Exception e) {
-            log.error("Failed to save audit log: {}", e.getMessage());
+    @Override
+    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+        HttpMethod method = exchange.getRequest().getMethod();
+        if (!MUTABLE_METHODS.contains(method)) {
+            return chain.filter(exchange);
         }
+
+        String path = exchange.getRequest().getPath().value();
+        String ipAddress = exchange.getRequest().getRemoteAddress() != null
+                ? exchange.getRequest().getRemoteAddress().getAddress().getHostAddress() : "unknown";
+        String userAgent = exchange.getRequest().getHeaders().getFirst("User-Agent");
+
+        return chain.filter(exchange)
+                .then(ReactiveSecurityContextHolder.getContext()
+                        .filter(ctx -> ctx.getAuthentication() != null
+                                && ctx.getAuthentication().isAuthenticated()
+                                && !ctx.getAuthentication().getPrincipal().equals("anonymousUser"))
+                        .flatMap(ctx -> {
+                            var auth = ctx.getAuthentication();
+                            String principal = auth.getPrincipal().toString();
+                            UUID userId = null;
+                            try { userId = UUID.fromString(principal); } catch (Exception ignored) {}
+
+                            String role = auth.getAuthorities().stream()
+                                    .findFirst()
+                                    .map(a -> a.getAuthority().replace("ROLE_", ""))
+                                    .orElse("UNKNOWN");
+
+                            AuditLog auditLog = AuditLog.builder()
+                                    .userId(userId)
+                                    .userEmail(principal)
+                                    .userRole(role)
+                                    .action(method.name() + " " + path)
+                                    .description("Reactive request")
+                                    .ipAddress(ipAddress)
+                                    .userAgent(userAgent)
+                                    .build();
+
+                            return auditLogRepository.save(auditLog)
+                                    .doOnSuccess(s -> log.debug("Audit: {} {} by {}", method, path, principal))
+                                    .doOnError(e -> log.error("Audit save failed: {}", e.getMessage()))
+                                    .onErrorResume(e -> Mono.empty());
+                        })
+                        .onErrorResume(e -> Mono.empty())
+                        .then());
     }
 }
