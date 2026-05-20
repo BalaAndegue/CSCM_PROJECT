@@ -1,38 +1,64 @@
 server:
   port: 8080
-  servlet:
-    context-path: /api
 
 spring:
   application:
     name: cscm-backend
 
+  # ===================================================
+  # R2DBC – Driver réactif (utilisé par l'application)
+  # ===================================================
+  r2dbc:
+    url: ${R2DBC_URL:r2dbc:postgresql://localhost:5432/cscm_db}
+    username: ${DB_USER:cscm_user}
+    password: ${DB_PASSWORD:cscm_password}
+    pool:
+      enabled: true
+      initial-size: 5
+      max-size: 20
+      max-idle-time: 30m
+      max-life-time: 60m
+      validation-query: SELECT 1
+
+  # ===================================================
+  # JDBC DataSource – UNIQUEMENT pour Flyway (migrations)
+  # ===================================================
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/cscm_db}
     username: ${DB_USER:cscm_user}
     password: ${DB_PASSWORD:cscm_password}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 5
+      maximum-pool-size: 3
+      minimum-idle: 1
       connection-timeout: 30000
 
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    show-sql: false
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
-        jdbc:
-          batch_size: 20
-
+  # ===================================================
+  # FLYWAY – Migrations DDL (utilise datasource JDBC)
+  # ===================================================
   flyway:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
+    validate-on-migrate: true
 
+  # ===================================================
+  # REDIS – Pub/Sub temps réel + cache sessions
+  # ===================================================
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 5000ms
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 5
+
+  # ===================================================
+  # MAIL
+  # ===================================================
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
@@ -45,32 +71,58 @@ spring:
           starttls:
             enable: true
 
-  servlet:
-    multipart:
-      enabled: true
-      max-file-size: 50MB
-      max-request-size: 55MB
-
+  # ===================================================
+  # JACKSON
+  # ===================================================
   jackson:
     serialization:
       write-dates-as-timestamps: false
       fail-on-empty-beans: false
     default-property-inclusion: non_null
+    deserialization:
+      fail-on-unknown-properties: false
 
+  # ===================================================
+  # UPLOAD FICHIERS – via multipart WebFlux
+  # ===================================================
+  codec:
+    max-in-memory-size: 64MB
+
+# ===================================================
 # JWT
+# ===================================================
 app:
   jwt:
     secret: ${JWT_SECRET:cscm-super-secret-jwt-key-that-is-at-least-256-bits-long-for-hs256}
-    expiration: ${JWT_EXPIRATION:86400000}      # 24h in ms
-    refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 days in ms
+    expiration: ${JWT_EXPIRATION:86400000}         # 24h
+    refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 jours
 
   file-storage:
     upload-dir: ${FILE_UPLOAD_DIR:./uploads}
-    base-url: ${FILE_BASE_URL:http://localhost:8080/api}
+    base-url: ${FILE_BASE_URL:http://localhost:8080}
+    max-file-size-mb: ${MAX_FILE_SIZE_MB:50}
+    allowed-types: image/jpeg,image/png,image/webp,application/pdf,application/dicom,video/mp4,audio/mpeg
 
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
 
-# SpringDoc / Swagger
+  # ===================================================
+  # QR CODE
+  # ===================================================
+  qrcode:
+    expiry-minutes: ${QR_CODE_EXPIRY_MINUTES:15}
+    code-court-expiry-minutes: ${CODE_COURT_EXPIRY_MINUTES:30}
+    secret: ${QR_SECRET:cscm-qr-secret-key-256bits-minimum-cameroun}
+
+  # ===================================================
+  # NOTIFICATIONS SSE
+  # ===================================================
+  notification:
+    sse-heartbeat-seconds: 30
+    channel-prefix: "cscm:notif:"
+
+# ===================================================
+# SpringDoc / Swagger (WebFlux)
+# ===================================================
 springdoc:
   api-docs:
     path: /v3/api-docs
@@ -81,21 +133,29 @@ springdoc:
     display-request-duration: true
   info:
     title: CSCM API – Carnet de Santé Numérique
-    version: 1.0.0
-    description: API complète pour la gestion des carnets de santé médicaux numériques
+    version: 2.0.0
+    description: >
+      API réactive (Spring WebFlux + R2DBC) pour la gestion des carnets
+      de santé médicaux numériques au Cameroun.
 
+# ===================================================
 # Actuator
+# ===================================================
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       show-details: when-authorized
 
+# ===================================================
+# Logging
+# ===================================================
 logging:
   level:
     com.cscm: DEBUG
     org.springframework.security: INFO
-    org.hibernate.SQL: WARN
+    io.r2dbc: WARN
+    org.springframework.r2dbc: WARN
