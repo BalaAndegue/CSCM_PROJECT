@@ -18,17 +18,19 @@ public class OpenApiConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("CSCM API – Carnet de Santé Connecté et Mobile")
-                        .version("1.0.0")
+                        .version("2.0.0")
                         .description("""
-                                API REST complète pour la gestion des carnets de santé numériques.
-                                
-                                **Rôles disponibles:**
-                                - `PATIENT` – Accès à son carnet, allergies, ordonnances
-                                - `MEDECIN` – Consultations, examens, ordonnances (après approbation patient)
-                                - `MANAGER_HOPITAL` – Gestion de l'hôpital et validation consents
-                                - `ADMIN` – Accès complet à la plateforme
-                                
-                                **Authentification:** JWT Bearer Token
+                                API réactive (Spring WebFlux + R2DBC) pour la gestion des carnets de santé numériques au Cameroun.
+
+                                **Rôles disponibles :**
+                                - `PATIENT` – Accès à son carnet, allergies, ordonnances, examens
+                                - `MEDECIN` – Consultations, ordonnances, examens (après approbation QR/code patient)
+                                - `MANAGER_HOPITAL` – Gestion hôpital, validation des consentements diagnostics
+                                - `ADMIN` – Validation CNOM médecins, accès complet à la plateforme
+
+                                **Authentification :** JWT Bearer Token — obtenu via `POST /api/auth/login`
+
+                                **Accès au carnet :** QR code ou code à 6 chiffres généré par le patient
                                 """)
                         .contact(new Contact().name("CSCM Team").email("contact@cscm.app"))
                         .license(new License().name("Proprietary")))
