@@ -1,56 +1,52 @@
 package com.cscm.backend.entity;
 
-import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import org.springframework.data.annotation.*;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
-import java.util.Map;
 import java.util.UUID;
 
-@Entity
-@Table(name = "resultats_examens")
+@Table("resultats_examens")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class ResultatExamen {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "examen_id", nullable = false)
-    private Examen examen;
+    /** FK → examens.id */
+    @Column("examen_id")
+    private UUID examenId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "fichier_resultat")
-    private Document fichierResultat;
+    /** FK → medias_fichiers.id (fichier de résultat principal) */
+    @Column("fichier_resultat_id")
+    private UUID fichierResultatId;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "valeurs_cles", columnDefinition = "jsonb")
-    private Map<String, Object> valeursCles;
+    /** Valeurs clés en JSON: {"hemoglobine":"12g/dL","leucocytes":"5000/mm3"} */
+    @Column("valeurs_cles")
+    private String valeursClesJson;
 
-    @Column(columnDefinition = "TEXT")
+    @Column("interpretation")
     private String interpretation;
 
-    @Column(name = "conclusion", columnDefinition = "TEXT")
+    @Column("conclusion")
     private String conclusion;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "medecin_lecteur")
-    private Medecin medecinLecteur;
+    /** FK → medecins.id */
+    @Column("medecin_lecteur")
+    private UUID medecinLecteurId;
 
-    @Column(name = "date_lecture")
+    @Column("date_lecture")
     private LocalDateTime dateLecture;
 
-    @Column(name = "normale")
+    @Column("normale")
     private Boolean normale;
 
-    @Column(name = "valeurs_reference", columnDefinition = "TEXT")
+    @Column("valeurs_reference")
     private String valeursReference;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 }

@@ -1,51 +1,50 @@
 package com.cscm.backend.entity;
 
-import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.*;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Entity
-@Table(name = "sessions")
+@Table("sessions")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Session {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    /** FK → users.id */
+    @Column("user_id")
+    private UUID userId;
 
-    @Column(name = "token_hash", nullable = false, length = 255)
+    @Column("token_hash")
     private String tokenHash;
 
-    @Column(name = "refresh_token_hash", length = 255)
+    @Column("refresh_token_hash")
     private String refreshTokenHash;
 
-    @Column(name = "expire_at", nullable = false)
+    @Column("expire_at")
     private LocalDateTime expireAt;
 
-    @Column(name = "refresh_expire_at")
+    @Column("refresh_expire_at")
     private LocalDateTime refreshExpireAt;
 
-    @Column(name = "derniere_activite")
+    @Column("derniere_activite")
     private LocalDateTime derniereActivite;
 
-    @Column(name = "appareil", length = 255)
+    @Column("appareil")
     private String appareil;
 
-    @Column(name = "ip_address", length = 50)
+    @Column("ip_address")
     private String ipAddress;
 
     @Builder.Default
-    @Column(name = "invalide")
+    @Column("invalide")
     private Boolean invalide = false;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 }

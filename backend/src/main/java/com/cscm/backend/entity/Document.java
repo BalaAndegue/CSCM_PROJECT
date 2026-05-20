@@ -1,64 +1,68 @@
 package com.cscm.backend.entity;
 
-import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.*;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Entity
-@Table(name = "documents")
+/**
+ * @deprecated Remplacé par {@link MediaFichier} pour les médias médicaux
+ * et {@link DocumentValidation} pour les documents de validation.
+ * Conservé pour rétrocompatibilité des migrations existantes.
+ */
+@Deprecated
+@Table("documents")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Document {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "carnet_id")
-    private CarnetMedical carnet;
+    @Column("carnet_id")
+    private UUID carnetId;
 
-    @Column(name = "uploaded_by", nullable = false)
+    @Column("uploaded_by")
     private UUID uploadedBy;
 
-    @Column(name = "nom_fichier", nullable = false, length = 255)
+    @Column("nom_fichier")
     private String nomFichier;
 
-    @Column(name = "nom_original", length = 255)
+    @Column("nom_original")
     private String nomOriginal;
 
-    @Column(name = "type_mime", length = 100)
+    @Column("type_mime")
     private String typeMime;
 
-    @Column(name = "taille")
+    @Column("taille")
     private Long taille;
 
-    @Column(name = "chemin_stockage", length = 500)
+    @Column("chemin_stockage")
     private String cheminStockage;
 
-    @Column(name = "type_document", length = 100)
-    private String typeDocument; // resultat_examen, ordonnance, rapport...
+    @Column("type_document")
+    private String typeDocument;
 
     @Builder.Default
-    @Column(name = "chiffre")
+    @Column("chiffre")
     private Boolean chiffre = false;
 
-    @Column(name = "description", columnDefinition = "TEXT")
+    @Column("description")
     private String description;
 
-    @Column(name = "entite_type", length = 50)
-    private String entiteType; // examen, consultation, ordonnance...
+    @Column("entite_type")
+    private String entiteType;
 
-    @Column(name = "entite_id")
+    @Column("entite_id")
     private UUID entiteId;
 
     @Builder.Default
-    @Column(name = "actif")
+    @Column("actif")
     private Boolean actif = true;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 }

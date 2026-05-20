@@ -1,105 +1,192 @@
 package com.cscm.backend.entity;
 
-import com.cscm.backend.enums.Genre;
-import com.cscm.backend.enums.GroupeSanguin;
-import com.cscm.backend.enums.SituationFamiliale;
-import jakarta.persistence.*;
+import com.cscm.backend.enums.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.annotation.*;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-@Entity
-@Table(name = "patients")
+/**
+ * Profil patient avec identité complète (CNI) et avariste obligatoire.
+ * L'avariste est la personne habilitée à donner accès au carnet
+ * si le patient est dans l'impossibilité de le faire.
+ */
+@Table("patients")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Patient {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @OneToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "user_id", unique = true)
-    private User user;
+    /** FK → users.id */
+    @Column("user_id")
+    private UUID userId;
 
-    @Column(name = "numero_carnet", unique = true, nullable = false, length = 50)
+    /** Matricule unique: CSCM-PAT-YYYY-XXXXXX */
+    @Column("matricule")
+    private String matricule;
+
+    /** Numéro du carnet de santé numérique */
+    @Column("numero_carnet")
     private String numeroCarnet;
 
-    @Column(name = "date_naissance", nullable = false)
+    // =========================================
+    // IDENTITÉ COMPLÈTE (Carte Nationale d'Identité)
+    // =========================================
+
+    @Column("date_naissance")
     private LocalDate dateNaissance;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 10)
+    @Column("lieu_naissance")
+    private String lieuNaissance;
+
+    @Column("pays_naissance")
+    private String paysNaissance;
+
+    @Column("region_naissance")
+    private RegionCameroun regionNaissance;
+
+    @Column("nationalite")
+    @Builder.Default
+    private String nationalite = "Camerounaise";
+
+    @Column("genre")
     private Genre genre;
 
-    @Column(columnDefinition = "TEXT")
-    private String adresse;
-
-    @Column(length = 20)
-    private String telephone;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "situation_familiale", length = 20)
+    @Column("situation_familiale")
     private SituationFamiliale situationFamiliale;
 
-    @Column(length = 255)
+    @Column("filiation_pere")
+    private String filiationPere;
+
+    @Column("filiation_mere")
+    private String filiationMere;
+
+    /** Numéro CNI (OBLIGATOIRE pour inscription) */
+    @Column("numero_cni")
+    private String numeroCNI;
+
+    @Column("date_delivrance_cni")
+    private LocalDate dateDelivranceCNI;
+
+    @Column("lieu_delivrance_cni")
+    private String lieuDelivranceCNI;
+
+    @Column("date_expiration_cni")
+    private LocalDate dateExpirationCNI;
+
+    // =========================================
+    // COORDONNÉES
+    // =========================================
+
+    @Column("telephone")
+    private String telephone;
+
+    @Column("adresse")
+    private String adresse;
+
+    @Column("ville")
+    private String ville;
+
+    @Column("region_residence")
+    private RegionCameroun regionResidence;
+
+    @Column("profession")
     private String profession;
 
-    @Column(name = "antecedents_chirurgicaux", columnDefinition = "TEXT")
-    private String antecedentsChirurgicaux;
+    @Column("lieu_travail")
+    private String lieuTravail;
 
-    @Column(name = "antecedents_familiaux", columnDefinition = "TEXT")
-    private String antecedentsFamiliaux;
+    // =========================================
+    // INFORMATIONS MÉDICALES DE BASE
+    // =========================================
 
-    @Column(name = "antecedents_medicaux", columnDefinition = "TEXT")
-    private String antecedentsMedicaux;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "groupe_sanguin", length = 10)
+    @Column("groupe_sanguin")
     private GroupeSanguin groupeSanguin;
 
-    @Column(name = "date_verification_abo_rh")
+    @Column("date_verification_abo_rh")
     private LocalDate dateVerificationAboRh;
 
-    @Column(name = "medecin_traitant_id")
+    @Column("antecedents_medicaux")
+    private String antecedentsMedicaux;
+
+    @Column("antecedents_chirurgicaux")
+    private String antecedentsChirurgicaux;
+
+    @Column("antecedents_familiaux")
+    private String antecedentsFamiliaux;
+
+    /** FK → medecins.id (médecin traitant personnel) */
+    @Column("medecin_traitant_id")
     private UUID medecinTraitantId;
 
-    @Column(name = "contact_urgence_nom", length = 255)
-    private String contactUrgenceNom;
-
-    @Column(name = "contact_urgence_telephone", length = 20)
-    private String contactUrgenceTelephone;
-
-    // Guarantor fields
-    @Column(name = "garant_nom_complet", length = 255)
-    private String garantNomComplet;
-
-    @Column(name = "garant_telephone", length = 20)
-    private String garantTelephone;
-
-    @Column(name = "garant_email", length = 255)
-    private String garantEmail;
-
-    @Column(name = "garant_lien_parente", length = 100)
-    private String garantLienParente;
-
-    @Column(name = "garant_user_id")
-    private UUID garantUserId;
-
-    @Column(name = "photo_profil")
+    @Column("photo_profil")
     private String photoProfil;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    // =========================================
+    // CONTACT D'URGENCE
+    // =========================================
+
+    @Column("contact_urgence_nom")
+    private String contactUrgenceNom;
+
+    @Column("contact_urgence_telephone")
+    private String contactUrgenceTelephone;
+
+    @Column("contact_urgence_lien")
+    private LienParente contactUrgenceLien;
+
+    // =========================================
+    // AVARISTE (GARANT D'ACCÈS) — OBLIGATOIRE
+    //
+    // L'avariste est la personne de confiance qui peut
+    // accorder l'accès au carnet médical si le patient
+    // est dans l'impossibilité de le faire lui-même
+    // (inconscience, décès, incapacité).
+    // =========================================
+
+    /** Nom complet de l'avariste (OBLIGATOIRE) */
+    @Column("garant_nom_complet")
+    private String garantNomComplet;
+
+    /** Téléphone de l'avariste (OBLIGATOIRE) */
+    @Column("garant_telephone")
+    private String garantTelephone;
+
+    /** Email de l'avariste */
+    @Column("garant_email")
+    private String garantEmail;
+
+    /** Lien de parenté avec le patient (OBLIGATOIRE) */
+    @Column("garant_lien_parente")
+    private LienParente garantLienParente;
+
+    /** Numéro CNI de l'avariste */
+    @Column("garant_numero_cni")
+    private String garantNumeroCNI;
+
+    /** Adresse complète de l'avariste */
+    @Column("garant_adresse")
+    private String garantAdresse;
+
+    /** Si l'avariste est aussi un utilisateur de la plateforme — FK → users.id */
+    @Column("garant_user_id")
+    private UUID garantUserId;
+
+    /** L'avariste a-t-il actuellement accès au carnet ? */
+    @Column("garant_acces_actif")
+    @Builder.Default
+    private Boolean garantAccesActif = false;
+
+    @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
+    @LastModifiedDate
+    @Column("updated_at")
     private LocalDateTime updatedAt;
 }

@@ -1,60 +1,56 @@
 package com.cscm.backend.entity;
 
-import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import org.springframework.data.annotation.*;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
-import java.util.Map;
 import java.util.UUID;
 
-@Entity
-@Table(name = "audit_logs")
+@Table("audit_logs")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class AuditLog {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id")
+    @Column("user_id")
     private UUID userId;
 
-    @Column(name = "user_email", length = 255)
+    @Column("user_email")
     private String userEmail;
 
-    @Column(name = "user_role", length = 30)
+    @Column("user_role")
     private String userRole;
 
-    @Column(nullable = false, length = 100)
+    @Column("action")
     private String action;
 
-    @Column(name = "entite_type", length = 50)
+    @Column("entite_type")
     private String entiteType;
 
-    @Column(name = "entite_id")
+    @Column("entite_id")
     private UUID entiteId;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "ancien_valeur", columnDefinition = "jsonb")
-    private Map<String, Object> ancienValeur;
+    /** Valeur avant modification (JSON texte) */
+    @Column("ancien_valeur")
+    private String ancienValeurJson;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "nouvelle_valeur", columnDefinition = "jsonb")
-    private Map<String, Object> nouvelleValeur;
+    /** Valeur après modification (JSON texte) */
+    @Column("nouvelle_valeur")
+    private String nouvelleValeurJson;
 
-    @Column(name = "ip_address", length = 50)
+    @Column("ip_address")
     private String ipAddress;
 
-    @Column(name = "user_agent", columnDefinition = "TEXT")
+    @Column("user_agent")
     private String userAgent;
 
-    @Column(name = "description", columnDefinition = "TEXT")
+    @Column("description")
     private String description;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 }

@@ -1,41 +1,50 @@
 package com.cscm.backend.entity;
 
-import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.*;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Entity
-@Table(name = "medecin_hopital",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"medecin_id", "hopital_id"}))
+/**
+ * Association médecin ↔ hôpital.
+ * Un médecin peut exercer dans plusieurs structures.
+ * Les interventions se font sous couverture d'une structure hospitalière légale.
+ */
+@Table("medecin_hopital")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class MedecinHopital {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "medecin_id", nullable = false)
-    private Medecin medecin;
+    /** FK → medecins.id */
+    @Column("medecin_id")
+    private UUID medecinId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "hopital_id", nullable = false)
-    private Hopital hopital;
+    /** FK → hopitaux.id */
+    @Column("hopital_id")
+    private UUID hopitalId;
 
     @Builder.Default
-    @Column(name = "actif")
+    @Column("actif")
     private Boolean actif = true;
 
-    @Column(name = "service", length = 100)
+    @Column("service")
     private String service;
 
-    @Column(name = "poste", length = 100)
+    @Column("poste")
     private String poste;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @Column("date_debut")
+    private LocalDateTime dateDebut;
+
+    @Column("date_fin")
+    private LocalDateTime dateFin;
+
+    @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 }

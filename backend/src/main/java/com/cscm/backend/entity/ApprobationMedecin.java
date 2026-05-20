@@ -1,79 +1,124 @@
 package com.cscm.backend.entity;
 
-import jakarta.persistence.*;
+import com.cscm.backend.enums.TypeAccesCarnet;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.*;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-@Entity
-@Table(name = "approbations_medecins",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"carnet_id", "medecin_id"}))
+/**
+ * Enregistrement d'une autorisation d'accès d'un médecin au carnet médical d'un patient.
+ * Supporte plusieurs modes d'accès : QR code, code court, ou permanent (médecin traitant).
+ */
+@Table("approbations_medecins")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class ApprobationMedecin {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "carnet_id", nullable = false)
-    private CarnetMedical carnet;
+    /** FK → carnets_medicaux.id */
+    @Column("carnet_id")
+    private UUID carnetId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "medecin_id", nullable = false)
-    private Medecin medecin;
+    /** FK → medecins.id */
+    @Column("medecin_id")
+    private UUID medecinId;
+
+    // =========================================
+    // APPROBATION PATIENT
+    // =========================================
 
     @Builder.Default
-    @Column(name = "approuve_par_patient", nullable = false)
+    @Column("approuve_par_patient")
     private Boolean approuveParPatient = false;
 
-    @Column(name = "date_signature_patient")
+    @Column("date_signature_patient")
     private LocalDateTime dateSignaturePatient;
 
-    @Column(name = "signature_patient", columnDefinition = "TEXT")
+    @Column("signature_patient")
     private String signaturePatient;
 
-    @Builder.Default
-    @Column(name = "actif")
-    private Boolean actif = true;
-
-    @Column(name = "date_revocation")
-    private LocalDateTime dateRevocation;
-
-    @Column(name = "date_expiration")
-    private LocalDateTime dateExpiration;
+    // =========================================
+    // APPROBATION AVARISTE
+    // =========================================
 
     @Builder.Default
-    @Column(name = "approuve_par_garant", nullable = false)
+    @Column("approuve_par_garant")
     private Boolean approuveParGarant = false;
 
-    @Column(name = "date_signature_garant")
+    @Column("date_signature_garant")
     private LocalDateTime dateSignatureGarant;
 
-    @Column(name = "signature_garant", columnDefinition = "TEXT")
+    @Column("signature_garant")
     private String signatureGarant;
 
-    @Column(name = "motif_revocation", columnDefinition = "TEXT")
+    // =========================================
+    // ÉTAT DE L'ACCÈS
+    // =========================================
+
+    @Builder.Default
+    @Column("actif")
+    private Boolean actif = true;
+
+    @Column("date_revocation")
+    private LocalDateTime dateRevocation;
+
+    @Column("date_expiration")
+    private LocalDateTime dateExpiration;
+
+    @Column("motif_revocation")
     private String motifRevocation;
 
-    @Column(name = "acces_historique")
-    @Builder.Default
-    private Boolean accesHistorique = false;
+    // =========================================
+    // TYPE ET SOURCE DE L'ACCÈS
+    // =========================================
 
-    @Column(name = "acces_ordonnances")
+    /** Comment l'accès a-t-il été accordé */
+    @Column("type_acces")
+    private TypeAccesCarnet typeAcces;
+
+    /** FK → tokens_acces_medecin.id (si accès par QR/code) */
+    @Column("token_acces_id")
+    private UUID tokenAccesId;
+
+    /** Accès permanent au médecin traitant personnel */
     @Builder.Default
+    @Column("est_medecin_personnel")
+    private Boolean estMedecinPersonnel = false;
+
+    // =========================================
+    // DROITS D'ACCÈS GRANULAIRES
+    // =========================================
+
+    @Builder.Default
+    @Column("acces_historique")
+    private Boolean accesHistorique = true;
+
+    @Builder.Default
+    @Column("acces_ordonnances")
     private Boolean accesOrdonnances = true;
 
-    @Column(name = "acces_examens")
     @Builder.Default
-    private Boolean acesExamens = true;
+    @Column("acces_examens")
+    private Boolean accesExamens = true;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @Builder.Default
+    @Column("acces_allergies")
+    private Boolean accesAllergies = true;
+
+    @Builder.Default
+    @Column("peut_editer")
+    private Boolean peutEditer = true;
+
+    @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    @Column("updated_at")
+    private LocalDateTime updatedAt;
 }

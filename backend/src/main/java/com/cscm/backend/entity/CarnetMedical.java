@@ -1,53 +1,48 @@
 package com.cscm.backend.entity;
 
-import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.annotation.*;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-@Entity
-@Table(name = "carnets_medicaux")
+@Table("carnets_medicaux")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class CarnetMedical {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "patient_id", nullable = false)
-    private Patient patient;
+    /** FK → patients.id */
+    @Column("patient_id")
+    private UUID patientId;
 
+    @Column("version")
     @Builder.Default
-    @Column(nullable = false)
     private Integer version = 1;
 
+    @Column("statut")
     @Builder.Default
-    @Column(nullable = false, length = 20)
     private String statut = "actif";
 
+    @Column("abonnement_actif")
     @Builder.Default
-    @Column(name = "abonnement_actif")
     private Boolean abonnementActif = true;
 
-    @Column(name = "date_expiration_abonnement")
+    @Column("date_expiration_abonnement")
     private LocalDate dateExpirationAbonnement;
 
-    @Column(name = "notes_generales", columnDefinition = "TEXT")
+    @Column("notes_generales")
     private String notesGenerales;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
+    @LastModifiedDate
+    @Column("updated_at")
     private LocalDateTime updatedAt;
 }

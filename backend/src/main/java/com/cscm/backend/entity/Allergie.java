@@ -2,66 +2,60 @@ package com.cscm.backend.entity;
 
 import com.cscm.backend.enums.GraviteAllergie;
 import com.cscm.backend.enums.TypeReactionAllergie;
-import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.*;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-@Entity
-@Table(name = "allergies")
+@Table("allergies")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Allergie {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "carnet_id", nullable = false)
-    private CarnetMedical carnet;
+    /** FK → carnets_medicaux.id */
+    @Column("carnet_id")
+    private UUID carnetId;
 
-    @Column(name = "nom_allergene", nullable = false, length = 255)
+    @Column("nom_allergene")
     private String nomAllergene;
 
-    @Column(name = "type_allergene", length = 100)
-    private String typeAllergene; // médicament, aliment, environnement...
+    @Column("type_allergene")
+    private String typeAllergene;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "type_reaction", nullable = false, length = 30)
+    @Column("type_reaction")
     private TypeReactionAllergie typeReaction;
 
-    @Enumerated(EnumType.STRING)
-    @Column(length = 20)
+    @Column("gravite")
     private GraviteAllergie gravite;
 
-    @Column(name = "date_premiere_reaction")
+    @Column("date_premiere_reaction")
     private LocalDate datePremierReaction;
 
-    @Column(columnDefinition = "TEXT")
+    @Column("description")
     private String description;
 
-    @Column(name = "traitement_urgence", columnDefinition = "TEXT")
+    @Column("traitement_urgence")
     private String traitementUrgence;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "medecin_notificateur")
-    private Medecin medecinNotificateur;
+    /** FK → medecins.id */
+    @Column("medecin_notificateur")
+    private UUID medecinNotificateurId;
 
     @Builder.Default
-    @Column(name = "visible_tous_medecins")
+    @Column("visible_tous_medecins")
     private Boolean visibleTousMedecins = true;
 
     @Builder.Default
-    @Column(name = "active")
+    @Column("active")
     private Boolean active = true;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 }

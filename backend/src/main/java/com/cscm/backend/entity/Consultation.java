@@ -1,84 +1,82 @@
 package com.cscm.backend.entity;
 
 import com.cscm.backend.enums.GraviteConsultation;
-import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.*;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-@Entity
-@Table(name = "consultations")
+@Table("consultations")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Consultation {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "carnet_id", nullable = false)
-    private CarnetMedical carnet;
+    /** FK → carnets_medicaux.id */
+    @Column("carnet_id")
+    private UUID carnetId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "medecin_id", nullable = false)
-    private Medecin medecin;
+    /** FK → medecins.id */
+    @Column("medecin_id")
+    private UUID medecinId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "hopital_id")
-    private Hopital hopital;
+    /** FK → hopitaux.id */
+    @Column("hopital_id")
+    private UUID hopitalId;
 
-    @Column(name = "date_consultation", nullable = false)
+    @Column("date_consultation")
     private LocalDateTime dateConsultation;
 
-    @Column(columnDefinition = "TEXT")
+    @Column("motif")
     private String motif;
 
-    @Column(columnDefinition = "TEXT")
+    @Column("symptomes")
     private String symptomes;
 
-    @Column(columnDefinition = "TEXT")
+    @Column("diagnostic")
     private String diagnostic;
 
-    @Column(name = "traitement_recommande", columnDefinition = "TEXT")
+    @Column("traitement_recommande")
     private String traitementRecommande;
 
-    @Column(name = "suivi_recommande", columnDefinition = "TEXT")
+    @Column("suivi_recommande")
     private String suiviRecommande;
 
-    @Column(name = "duree_consultation_minutes")
+    @Column("duree_consultation_minutes")
     private Integer dureeConsultationMinutes;
 
-    @Enumerated(EnumType.STRING)
-    @Column(length = 20)
+    @Column("gravite")
     private GraviteConsultation gravite;
 
-    @Column(name = "prochaine_consultation")
+    @Column("prochaine_consultation")
     private LocalDateTime prochaineConsultation;
 
-    @Column(name = "pression_arterielle", length = 20)
+    @Column("pression_arterielle")
     private String pressionArterielle;
 
-    @Column(name = "poids")
+    @Column("poids")
     private Double poids;
 
-    @Column(name = "taille")
+    @Column("taille")
     private Double taille;
 
-    @Column(name = "temperature")
+    @Column("temperature")
     private Double temperature;
 
-    @Column(name = "frequence_cardiaque")
+    @Column("frequence_cardiaque")
     private Integer frequenceCardiaque;
 
-    @Column(name = "notes_complementaires", columnDefinition = "TEXT")
+    @Column("saturation_oxygene")
+    private Integer saturationOxygene;
+
+    @Column("notes_complementaires")
     private String notesComplementaires;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 }

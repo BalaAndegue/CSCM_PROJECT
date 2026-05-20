@@ -1,79 +1,175 @@
 package com.cscm.backend.entity;
 
 import com.cscm.backend.enums.MedecinStatus;
-import jakarta.persistence.*;
+import com.cscm.backend.enums.RegionCameroun;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.*;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-@Entity
-@Table(name = "medecins")
+/**
+ * Profil médecin avec documents et champs conformes au contexte camerounais.
+ * Validation stricte par admin avant autorisation d'exercer sur la plateforme.
+ */
+@Table("medecins")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Medecin {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @OneToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "user_id", unique = true)
-    private User user;
+    /** FK → users.id */
+    @Column("user_id")
+    private UUID userId;
 
-    @Column(name = "numero_ordre", unique = true, nullable = false, length = 50)
+    /** Matricule unique CSCM: CSCM-MED-XXXXX */
+    @Column("matricule")
+    private String matricule;
+
+    // =========================================
+    // IDENTITÉ PROFESSIONNELLE
+    // =========================================
+
+    /** Numéro d'inscription au Conseil National de l'Ordre des Médecins du Cameroun (CNOM) */
+    @Column("numero_cnom")
+    private String numeroCNOM;
+
+    /** Numéro du registre de l'ordre (peut différer du CNOM) */
+    @Column("numero_ordre")
     private String numeroOrdre;
 
-    @Column(nullable = false, length = 255)
-    private String specialite;
-
-    @Column(name = "sous_specialite", length = 255)
-    private String sousSpecialite;
-
-    @Column(name = "numero_carte_professionnelle", unique = true, length = 100)
+    /** Numéro de la carte professionnelle délivrée par le CNOM */
+    @Column("numero_carte_professionnelle")
     private String numeroCarteProfessionnelle;
 
-    @Column(name = "annees_experience")
+    // =========================================
+    // CNI DU MÉDECIN
+    // =========================================
+
+    @Column("numero_cni")
+    private String numeroCNI;
+
+    @Column("date_delivrance_cni")
+    private LocalDate dateDelivranceCNI;
+
+    @Column("lieu_delivrance_cni")
+    private String lieuDelivranceCNI;
+
+    @Column("date_expiration_cni")
+    private LocalDate dateExpirationCNI;
+
+    // =========================================
+    // SPÉCIALITÉ & COMPÉTENCES
+    // =========================================
+
+    @Column("specialite")
+    private String specialite;
+
+    @Column("sous_specialite")
+    private String sousSpecialite;
+
+    /** Diplômes stockés en JSON: ["Doctorat Médecine UYI 2015", "DESC Cardiologie 2019"] */
+    @Column("diplomes_json")
+    private String diplomesJson;
+
+    @Column("annees_experience")
     @Builder.Default
     private Integer anneesExperience = 0;
 
-    @ElementCollection
-    @CollectionTable(name = "medecin_diplomes", joinColumns = @JoinColumn(name = "medecin_id"))
-    @Column(name = "diplome")
-    private List<String> diplomes;
-
-    @Column(name = "biographie", columnDefinition = "TEXT")
+    @Column("biographie")
     private String biographie;
 
-    @Column(name = "photo_identite")
+    /** Langues pratiquées (important: Cameroun bilingue) JSON: ["Français","Anglais"] */
+    @Column("langues_json")
+    private String languesJson;
+
+    // =========================================
+    // LOCALISATION PRINCIPALE
+    // =========================================
+
+    @Column("region_principale")
+    private RegionCameroun regionPrincipale;
+
+    @Column("ville_principale")
+    private String villePrincipale;
+
+    // =========================================
+    // CASIER JUDICIAIRE
+    // =========================================
+
+    @Column("reference_casier_judiciaire")
+    private String referenceCasierJudiciaire;
+
+    @Column("date_expiration_casier")
+    private LocalDate dateExpirationCasier;
+
+    // =========================================
+    // PHOTOS & DOCUMENTS
+    // =========================================
+
+    @Column("photo_identite")
     private String photoIdentite;
 
+    // =========================================
+    // ÉTAT COMPTE & VALIDATION ADMIN
+    // =========================================
+
     @Builder.Default
-    @Enumerated(EnumType.STRING)
-    @Column(length = 20)
+    @Column("status")
     private MedecinStatus status = MedecinStatus.EN_ATTENTE;
 
-    @Column(name = "raison_rejet", columnDefinition = "TEXT")
+    @Column("raison_rejet")
     private String raisonRejet;
 
-    @Column(name = "valide_par")
+    /** FK → users.id (admin ayant validé) */
+    @Column("valide_par")
     private UUID validePar;
 
-    @Column(name = "date_validation")
+    @Column("date_validation")
     private LocalDateTime dateValidation;
 
-    @Column(name = "consultation_fee")
-    private Double consultationFee;
+    /** Tous les documents obligatoires ont été uploadés */
+    @Column("documents_complets")
+    @Builder.Default
+    private Boolean documentsComplets = false;
 
-    @Column(name = "disponible")
+    /** Tous les documents validés par un admin */
+    @Column("documents_valides")
+    @Builder.Default
+    private Boolean documentsValides = false;
+
+    // =========================================
+    // EXERCICE
+    // =========================================
+
+    @Column("disponible")
     @Builder.Default
     private Boolean disponible = true;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @Column("consultation_fee")
+    private Double consultationFee;
+
+    // =========================================
+    // STATISTIQUES (calculées périodiquement)
+    // =========================================
+
+    @Column("nombre_patients_suivis")
+    @Builder.Default
+    private Integer nombrePatientsSuivis = 0;
+
+    @Column("nombre_consultations_total")
+    @Builder.Default
+    private Integer nombreConsultationsTotal = 0;
+
+    @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    @Column("updated_at")
+    private LocalDateTime updatedAt;
 }

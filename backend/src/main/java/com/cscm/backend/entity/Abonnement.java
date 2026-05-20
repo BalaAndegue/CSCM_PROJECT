@@ -3,63 +3,59 @@ package com.cscm.backend.entity;
 import com.cscm.backend.enums.AbonnementPeriode;
 import com.cscm.backend.enums.AbonnementPlan;
 import com.cscm.backend.enums.AbonnementStatut;
-import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.*;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Entity
-@Table(name = "abonnements")
+@Table("abonnements")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Abonnement {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "patient_id", nullable = false)
-    private Patient patient;
+    /** FK → patients.id */
+    @Column("patient_id")
+    private UUID patientId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column("plan")
     private AbonnementPlan plan;
 
-    @Column(precision = 10, scale = 2)
+    @Column("montant")
     private BigDecimal montant;
 
-    @Enumerated(EnumType.STRING)
-    @Column(length = 10)
+    @Column("periode")
     private AbonnementPeriode periode;
 
-    @Column(name = "date_debut", nullable = false)
+    @Column("date_debut")
     private LocalDateTime dateDebut;
 
-    @Column(name = "date_fin", nullable = false)
+    @Column("date_fin")
     private LocalDateTime dateFin;
 
     @Builder.Default
-    @Enumerated(EnumType.STRING)
-    @Column(length = 10)
+    @Column("statut")
     private AbonnementStatut statut = AbonnementStatut.ACTIF;
 
-    @Column(name = "moyen_paiement", length = 100)
+    @Column("moyen_paiement")
     private String moyenPaiement;
 
-    @Column(name = "reference_paiement", length = 100)
+    @Column("reference_paiement")
     private String referencePaiement;
 
     @Builder.Default
-    @Column(name = "renouvellement_automatique")
+    @Column("renouvellement_automatique")
     private Boolean renouvellementAutomatique = true;
 
-    @Column(name = "note", columnDefinition = "TEXT")
+    @Column("note")
     private String note;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 }

@@ -1,78 +1,80 @@
 package com.cscm.backend.entity;
 
 import com.cscm.backend.enums.UserRole;
-import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.annotation.*;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-@Entity
-@Table(name = "users")
+@Table("users")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(unique = true, nullable = false, length = 255)
+    @Column("email")
     private String email;
 
-    @Column(name = "mot_de_passe_hash", nullable = false)
+    @Column("mot_de_passe_hash")
     private String motDePasseHash;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
+    @Column("role")
     private UserRole role;
 
-    @Column(name = "nom_complet", nullable = false, length = 255)
+    @Column("nom_complet")
     private String nomComplet;
 
-    @Column(length = 20)
+    @Column("telephone")
     private String telephone;
 
-    @Column(name = "email_verifie")
+    /** Matricule unique CSCM (ex: CSCM-PAT-2024-000001) */
+    @Column("matricule")
+    private String matricule;
+
+    @Column("email_verifie")
     @Builder.Default
     private Boolean emailVerifie = false;
 
-    @Column(name = "telephone_verifie")
+    @Column("telephone_verifie")
     @Builder.Default
     private Boolean telephoneVerifie = false;
 
-    @Column(name = "deux_facteurs")
+    @Column("deux_facteurs")
     @Builder.Default
     private Boolean deuxFacteurs = false;
 
-    @Column(name = "deux_facteurs_secret")
+    @Column("deux_facteurs_secret")
     private String deuxFacteursSecret;
 
-    @Column(name = "compte_actif")
+    @Column("compte_actif")
     @Builder.Default
     private Boolean compteActif = true;
 
-    @Column(name = "derniere_connexion")
+    @Column("derniere_connexion")
     private LocalDateTime derniereConnexion;
 
-    @Column(name = "token_reinitialisation")
+    @Column("token_reinitialisation")
     private String tokenReinitialisation;
 
-    @Column(name = "token_reinit_expire_at")
+    @Column("token_reinit_expire_at")
     private LocalDateTime tokenReinitExpireAt;
 
-    @Column(name = "token_verification_email")
+    @Column("token_verification_email")
     private String tokenVerificationEmail;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    /** Token FCM (Firebase Cloud Messaging) pour push notifications Android */
+    @Column("fcm_token")
+    private String fcmToken;
+
+    @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
+    @LastModifiedDate
+    @Column("updated_at")
     private LocalDateTime updatedAt;
 }

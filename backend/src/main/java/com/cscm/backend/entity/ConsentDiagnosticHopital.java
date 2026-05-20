@@ -1,57 +1,56 @@
 package com.cscm.backend.entity;
 
-import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.*;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Entity
-@Table(name = "consents_diagnostic_hopital")
+@Table("consents_diagnostic_hopital")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class ConsentDiagnosticHopital {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "consultation_id", nullable = false)
-    private Consultation consultation;
+    /** FK → consultations.id */
+    @Column("consultation_id")
+    private UUID consultationId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "medecin_id", nullable = false)
-    private Medecin medecin;
+    /** FK → medecins.id */
+    @Column("medecin_id")
+    private UUID medecinId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "hopital_id", nullable = false)
-    private Hopital hopital;
+    /** FK → hopitaux.id */
+    @Column("hopital_id")
+    private UUID hopitalId;
 
-    @Column(name = "motif_demande", columnDefinition = "TEXT")
+    @Column("motif_demande")
     private String motifDemande;
 
-    @Column(name = "demande_par_medecin", nullable = false)
+    @Column("demande_par_medecin")
     private LocalDateTime demandeParMedecin;
 
     @Builder.Default
-    @Column(name = "approuve_par_manager")
+    @Column("approuve_par_manager")
     private Boolean approuveParManager = false;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "manager_id")
-    private User manager;
+    /** FK → users.id (manager) */
+    @Column("manager_id")
+    private UUID managerId;
 
-    @Column(name = "date_approuvation")
+    @Column("date_approuvation")
     private LocalDateTime dateApprouvation;
 
-    @Column(name = "motif_refus", columnDefinition = "TEXT")
+    @Column("motif_refus")
     private String motifRefus;
 
-    @Column(name = "date_expiration")
+    @Column("date_expiration")
     private LocalDateTime dateExpiration;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 }

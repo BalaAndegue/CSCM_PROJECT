@@ -1,63 +1,69 @@
 package com.cscm.backend.entity;
 
-import jakarta.persistence.*;
+import com.cscm.backend.enums.TypeExamenCameroun;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.*;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Entity
-@Table(name = "examens")
+@Table("examens")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Examen {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "carnet_id", nullable = false)
-    private CarnetMedical carnet;
+    /** FK → carnets_medicaux.id */
+    @Column("carnet_id")
+    private UUID carnetId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "medecin_prescripteur")
-    private Medecin medecinPrescripteur;
+    /** FK → medecins.id */
+    @Column("medecin_prescripteur")
+    private UUID medecinPrescripteurId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "consultation_id")
-    private Consultation consultation;
+    /** FK → consultations.id */
+    @Column("consultation_id")
+    private UUID consultationId;
 
-    @Column(name = "type_examen", nullable = false, length = 255)
+    /** Libellé libre de l'examen */
+    @Column("type_examen")
     private String typeExamen;
 
-    @Column(name = "categorie_examen", length = 100)
-    private String categorieExamen; // biologie, imagerie, fonctionnel...
+    /** Catégorie standardisée Cameroun */
+    @Column("type_examen_cameroun")
+    private TypeExamenCameroun typeExamenCameroun;
 
-    @Column(columnDefinition = "TEXT")
+    /** biologie, imagerie, fonctionnel, anatomopathologie… */
+    @Column("categorie_examen")
+    private String categorieExamen;
+
+    @Column("instructions")
     private String instructions;
 
-    @Column(name = "date_prescription")
+    @Column("date_prescription")
     private LocalDateTime datePrescription;
 
-    @Column(name = "date_realisation")
+    @Column("date_realisation")
     private LocalDateTime dateRealisation;
 
-    @Column(name = "etablissement_realisation", length = 255)
+    @Column("etablissement_realisation")
     private String etablissementRealisation;
 
     @Builder.Default
-    @Column(name = "resultat_pris_en_compte")
+    @Column("resultat_pris_en_compte")
     private Boolean resultatPrisEnCompte = false;
 
     @Builder.Default
-    @Column(name = "urgent")
+    @Column("urgent")
     private Boolean urgent = false;
 
-    @Column(columnDefinition = "TEXT")
+    @Column("notes")
     private String notes;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 }

@@ -1,82 +1,75 @@
 package com.cscm.backend.entity;
 
 import com.cscm.backend.enums.OrdonnanceStatus;
-import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import org.springframework.data.annotation.*;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-@Entity
-@Table(name = "ordonnances")
+@Table("ordonnances")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Ordonnance {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "consultation_id")
-    private Consultation consultation;
+    /** FK → consultations.id */
+    @Column("consultation_id")
+    private UUID consultationId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "carnet_id", nullable = false)
-    private CarnetMedical carnet;
+    /** FK → carnets_medicaux.id */
+    @Column("carnet_id")
+    private UUID carnetId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "medecin_id", nullable = false)
-    private Medecin medecin;
+    /** FK → medecins.id */
+    @Column("medecin_id")
+    private UUID medecinId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "hopital_id", nullable = false)
-    private Hopital hopital;
+    /** FK → hopitaux.id */
+    @Column("hopital_id")
+    private UUID hopitalId;
 
-    @Column(name = "date_prescription", nullable = false)
+    @Column("date_prescription")
     private LocalDateTime datePrescription;
 
-    @Column(name = "date_expiration")
+    @Column("date_expiration")
     private LocalDateTime dateExpiration;
 
     @Builder.Default
-    @Column(name = "renouvelable")
+    @Column("renouvelable")
     private Boolean renouvelable = false;
 
-    @Column(name = "nombre_renouvellements")
     @Builder.Default
+    @Column("nombre_renouvellements")
     private Integer nombreRenouvellements = 0;
 
-    @Column(name = "numero_ordonnance", unique = true, length = 50)
+    @Column("numero_ordonnance")
     private String numeroOrdonnance;
 
-    // List of: {"nom": "Paracétamol", "dosage": "500mg", "frequence": "3x/jour", "duree": "5j", "voie": "orale"}
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "medicaments", columnDefinition = "jsonb", nullable = false)
-    private List<Map<String, Object>> medicaments;
+    /**
+     * Médicaments en JSON: [{"nom":"Paracétamol","dosage":"500mg","frequence":"3x/j","duree":"5j","voie":"orale"}]
+     * Stocké comme TEXT pour compatibilité R2DBC — sérialisé/désérialisé dans le service.
+     */
+    @Column("medicaments")
+    private String medicamentsJson;
 
-    @Column(columnDefinition = "TEXT")
+    @Column("instructions")
     private String instructions;
 
-    @Column(name = "posologie_detaillee", columnDefinition = "TEXT")
+    @Column("posologie_detaillee")
     private String posologieDetaillee;
 
-    @Column(name = "note_pharmacien", columnDefinition = "TEXT")
+    @Column("note_pharmacien")
     private String notePharmacien;
 
     @Builder.Default
-    @Enumerated(EnumType.STRING)
-    @Column(length = 20)
+    @Column("status")
     private OrdonnanceStatus status = OrdonnanceStatus.ACTIVE;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 }
